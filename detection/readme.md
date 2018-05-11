@@ -2,6 +2,7 @@
 * faster-rcnn
 * DSSD
 * VGG
+* MSER/MSCR
 * ...
 
 ## References:
