@@ -6,10 +6,9 @@ def give_dictionary():
         chara = f.readlines()
         for line in chara:
             word = line.split(':')[0]
-            dictionary[word] = i
             i += 1
-            
-        
+            dictionary[word] = i
+        i += 1
         dictionary[':'] = i
     return dictionary
 

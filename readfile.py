@@ -23,7 +23,7 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
     ret,img = cv2.threshold(img, 127,255,cv2.THRESH_TOZERO)
     step += 1
     print(step)
-    if (step > 10):
+    if (step > 1000):
 
         exit()
 
@@ -61,6 +61,8 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
                 if (crop_img.shape[1] < crop_img.shape[0]):
                     crop_img = np.rot90(crop_img)
                 x_s = Threshold
+                if crop_img.shape[0]==0:
+                    continue
                 y_s = int((crop_img.shape[1]/crop_img.shape[0]) * Threshold)
                 crop_img = cv2.resize(crop_img,(y_s, x_s))
                 rest = MAX_LENGTH - crop_img.shape[1]
@@ -72,7 +74,7 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
             #    plt.imshow(crop_img, cmap="gray")
             #    print(label, Num, '0')
 
-                rewrite_name = "./rewrite/" + filename_suf + "_" + str(Num) + ".jpg" #"/home/h/a/hanlins/Desktop/OCR/rewrite/" + filename_suf + "_" + str(Num) + ".jpg"
+                rewrite_name = "rewrite/" + filename_suf + "_" + str(Num) + ".jpg" #"/home/h/a/hanlins/Desktop/OCR/rewrite/" + filename_suf + "_" + str(Num) + ".jpg"
                 cv2.imwrite(rewrite_name,crop_img)
                 ff.write(rewrite_name + ',' + label)
                 Num += 1
@@ -94,6 +96,8 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
                 if (crop_img.shape[1] < crop_img.shape[0]):
                     crop_img = np.rot90(crop_img)
                 x_s = Threshold
+                if crop_img.shape[0]==0:
+                    continue
                 y_s = int((crop_img.shape[1]/crop_img.shape[0]) * Threshold)
                 crop_img = cv2.resize(crop_img,(y_s, x_s))
                 rest = MAX_LENGTH - crop_img.shape[1]
