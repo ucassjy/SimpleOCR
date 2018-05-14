@@ -4,7 +4,7 @@ import numpy as np
 
 def _ratio_scales(ratios, scales):
     """
-    Enumerate a set of anchors for each aspect ratio wrt an anchor.
+    Enumerate the 9 heights and widths by 3 given ratios and 3 given scales.
     """
 
     ss = np.repeat(scales, 3)
