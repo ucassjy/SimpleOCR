@@ -1,15 +1,15 @@
 import numpy as np
 
 def give_label():
-
+    nu = 0
     with open("dictionary.txt",'r') as f:
         dictionary = f.readlines()
         real_dict = {}
         for line in dictionary:
-            value = line.split(':')[0]
-            key = line.split(':')[1]
-            key = key.split('\n')[0]
-            real_dict[value] = key
+            key = line.split(':')[0]
+            value = line.split(':')[1]
+            value = value.split('\n')[0]
+            real_dict[key] = value
         real_dict[':'] = len(real_dict)
     # NOW WE HAVE THE REAL DICTIONARY !!!
     final_label = []
@@ -21,15 +21,24 @@ def give_label():
         for line in label:
             filename = line.split(',')[0]
             content = list(line.split(',')[1])
+
             if content[0] == "#":
                 continue
+            if len(content)==1:
+                continue
             for element in range(len(content)):
+
+
+                if content[element] == '\n':
+                    content.remove('\n')
+                    break
                 # if content[element] == "0":
                 #     content[element] = "\ufeff0"        #FUUUUUUUUUUCK! FUCKFUCKFUCKFUCKFUCKFUCKFUCK
-                if element==len(content)-1:
-                    content[element] = 0
-                else:
-                    content[element] = int(real_dict[content[element]])
+                # if element==len(content)-1:
+                #     content[element] = []
+                # else:
+
+                content[element] = int(real_dict[content[element]])
             # rest = MAX_CHARACTER - len(content)
             # if rest < 0:
             #     rest = 0
@@ -42,8 +51,5 @@ def give_label():
                                 # MAYBE NEED CUT
             final_label.append(content)
             useful_filename.append(filename)
-        
+
         return final_label, useful_filename
-
-
-# final_label, useful_filename = give_label()
