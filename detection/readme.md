@@ -13,8 +13,12 @@ Output proposals from RRPN are projected onto the VGG-16 output feature map from
 A classifier consisting of two fully connected layers does the final work, which makes the prediction of whether the proposal has text content.
 
 
+## Some Understandings of the network
+### How does the network make a prediction?
+The VGG-16 is used to provide a feature map of the input image. With the feature map the RRPN network makes proposals, which are projected to the feature map itself. Then the following R-CNN network serves as a classifier.
+
 ## References:
 * Arbitrary-Oriented Scene Text Detection via Rotation Proposals, https://arxiv.org/abs/1703.01086
 * Multi-Oriented Scene Text Detection via Corner Localization and Region Segmentation, https://arxiv.org/abs/1802.08948
 * RPN, https://blog.csdn.net/wfei101/article/details/78821629
-* Faster R-CNN, https://blog.csdn.net/xbcReal/article/details/76180912
+* Faster R-CNN: [Original paper translated into Chinese](https://blog.csdn.net/lwplwf/article/details/74906205); [Discussion 1](https://blog.csdn.net/xbcReal/article/details/76180912), [Discussion 2](https://blog.csdn.net/bailufeiyan/article/details/50575150)
