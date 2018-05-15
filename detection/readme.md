@@ -1,4 +1,4 @@
-# Implement method: mainly using a modified version of RPN
+# Implement method: Faster R-CNN with a modified version of RPN
 The basic structures of this network are as follows:
 ### VGG-16 for feature extracting
 Convolutional layers of VGG-16 are employed in the front of the framework, which are shared by two sibling branches:
