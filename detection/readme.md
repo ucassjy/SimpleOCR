@@ -17,3 +17,4 @@ A classifier consisting of two fully connected layers does the final work, which
 * Arbitrary-Oriented Scene Text Detection via Rotation Proposals, https://arxiv.org/abs/1703.01086
 * Multi-Oriented Scene Text Detection via Corner Localization and Region Segmentation, https://arxiv.org/abs/1802.08948
 * RPN, https://blog.csdn.net/wfei101/article/details/78821629
+* Faster R-CNN, https://blog.csdn.net/xbcReal/article/details/76180912
