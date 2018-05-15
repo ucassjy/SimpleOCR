@@ -17,12 +17,12 @@ label_origin, filename = give_label()
 #TENSORFLOW TIME
 
 OUTPUT_SHAPE = (Threshold, MAX_LENGTH) #(50,750)
-num_epochs = 1000
+num_epochs = 10
 
 num_hidden = 64
 num_layers = 1
 INITIAL_LEARNING_RATE = 0.001
-DECAY_STEPS = 500
+DECAY_STEPS = 100
 REPORT_STEPS = 200
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOMENTUM = 0.9
@@ -75,8 +75,13 @@ def decode_a_seq(indexes, spars_tensor):
     return decoded
 
 def report_accuracy(decoded_list, test_targets):
+    print("PART 1")
     original_list = decode_sparse_tensor(test_targets)
+    print("PART 2")
     detected_list = decode_sparse_tensor(decoded_list)
+    print("PART 3")
+    print(detected_list)
+
     true_numer = 0
 
     if len(original_list) != len(detected_list):
@@ -96,13 +101,14 @@ def report_accuracy(decoded_list, test_targets):
 def get_input_label(BATCH_SIZE, START, label_origin):
     input = np.zeros([BATCH_SIZE, OUTPUT_SHAPE[1], OUTPUT_SHAPE[0]])
     for i in range(BATCH_SIZE):
+        if START + BATCH_SIZE > len(filename):
+            START = len(filename) - BATCH_SIZE
         img = cv2.imread(filename[i + START], cv2.IMREAD_GRAYSCALE)
         img = img[:,0:MAX_LENGTH]
         img = np.transpose(img)
 
         input[i,:,:] =  img
-    if START + BATCH_SIZE > len(filename):
-        START = len(filename) - BATCH_SIZE
+
     target = label_origin[START:START+BATCH_SIZE]
 
     sparse_target = sparse_tuple_from(target)
@@ -231,16 +237,18 @@ def train():
 
     def do_report():
         test_inputs,test_targets,test_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
+        print("DIFFICULT?")
         test_feed = {inputs: test_inputs,
                      targets: test_targets,
                      seq_len: test_seq_len}
+
         dd, log_probs, accuracy = session.run([decoded[0], log_prob, acc], test_feed)
+        print("accuracy",accuracy)
         report_accuracy(dd, test_targets)
         # decoded_list = decode_sparse_tensor(dd)
 
     def do_batch():
         train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
-
         feed = {inputs: train_inputs, targets: train_targets, seq_len: train_seq_len}
         b_loss,b_targets, b_logits, b_seq_len,b_cost, steps, _ = session.run([loss, targets, logits, seq_len, cost, global_step, optimizer], feed)
 
@@ -248,8 +256,9 @@ def train():
         #print b_targets, b_logits, b_seq_len
         print(b_cost, steps)
 
+
         if steps > 0 and steps % REPORT_STEPS == 0:
-            do_report()
+    #        do_report()
             print("DO REPORT")
             #save_path = saver.save(session, "ocr.model", global_step=steps)
             # print(save_path)
@@ -257,6 +266,7 @@ def train():
         return b_cost, steps
 
     with tf.Session() as session:
+
         session.run(init)
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=100)
         for curr_epoch in range(num_epochs):
@@ -265,33 +275,31 @@ def train():
             for batch in range(BATCHES):
                 start = time.time()
                 c, steps = do_batch()
-                print(START)
+
                 START = START + BATCH_SIZE
                 train_cost += c * BATCH_SIZE
                 seconds = time.time() - start
                 print("Step:", steps, ", batch seconds:", seconds)
 
-            train_cost /= TRAIN_SIZE
-
-            train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
-
-
-
-            val_feed = {inputs: train_inputs,
-                        targets: train_targets,
-                        seq_len: train_seq_len}
-
-            val_cost, val_ler, lr, steps = session.run([cost, acc, learning_rate, global_step], feed_dict=val_feed)
-
-            log = "Epoch {}/{}, steps = {}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}s, learning_rate = {}"
-            print(log.format(curr_epoch + 1, num_epochs, steps, train_cost, train_ler, val_cost, val_ler, time.time() - start, lr))
+            # train_cost /= TRAIN_SIZE
+            #
+            # train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
+            #
+            #
+            #
+            # val_feed = {inputs: train_inputs,
+            #             targets: train_targets,
+            #             seq_len: train_seq_len}
+            #
+            # val_cost, val_ler, lr, steps = session.run([cost, acc, learning_rate, global_step], feed_dict=val_feed)
+            #
+            # log = "Epoch {}/{}, steps = {}, train_cost = {:.3f}, train_ler = {:.3f}, val_cost = {:.3f}, val_ler = {:.3f}, time = {:.3f}s, learning_rate = {}"
+            # print(log.format(curr_epoch + 1, num_epochs, steps, train_cost, train_ler, val_cost, val_ler, time.time() - start, lr))
 
 if __name__ == '__main__':
     # inputs, sparse_targets,seq_len = get_input_label(BATCH_SIZE, START, label_origin)
     # decode_sparse_tensor(sparse_targets)
     train()
-
-
 
 #get_input_label(BATCH_SIZE, START, label_origin)
 
