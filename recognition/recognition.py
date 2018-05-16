@@ -17,16 +17,16 @@ label_origin, filename = give_label()
 #TENSORFLOW TIME
 
 OUTPUT_SHAPE = (Threshold, MAX_LENGTH) #(50,750)
-num_epochs = 10
+num_epochs = 100
 
 num_hidden = 64
-num_layers = 1
+num_layers = 8
 INITIAL_LEARNING_RATE = 0.001
-DECAY_STEPS = 100
-REPORT_STEPS = 200
+DECAY_STEPS = 1000
+REPORT_STEPS = 10
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOMENTUM = 0.9
-BATCH_SIZE = 10
+BATCH_SIZE = 1
 BATCHES = int(len(filename)/BATCH_SIZE) + 1
 TRAIN_SIZE = BATCHES * BATCH_SIZE
 num_classes = 3923
@@ -75,12 +75,12 @@ def decode_a_seq(indexes, spars_tensor):
     return decoded
 
 def report_accuracy(decoded_list, test_targets):
-    print("PART 1")
+
     original_list = decode_sparse_tensor(test_targets)
-    print("PART 2")
+
     detected_list = decode_sparse_tensor(decoded_list)
-    print("PART 3")
-    print(detected_list)
+    print("original",original_list)
+    print("DETECTED",detected_list)
 
     true_numer = 0
 
@@ -229,8 +229,8 @@ def train():
 
     #optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate,momentum=MOMENTUM).minimize(cost, global_step=global_step)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss,global_step=global_step)
-    decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
-
+    # decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
+    decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len, merge_repeated = False)
     acc = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
 
     init = tf.global_variables_initializer()
@@ -244,6 +244,7 @@ def train():
 
         dd, log_probs, accuracy = session.run([decoded[0], log_prob, acc], test_feed)
         print("accuracy",accuracy)
+        print("LOG", log_probs)
         report_accuracy(dd, test_targets)
         # decoded_list = decode_sparse_tensor(dd)
 
@@ -258,7 +259,7 @@ def train():
 
 
         if steps > 0 and steps % REPORT_STEPS == 0:
-    #        do_report()
+            do_report()
             print("DO REPORT")
             #save_path = saver.save(session, "ocr.model", global_step=steps)
             # print(save_path)
@@ -270,9 +271,12 @@ def train():
         session.run(init)
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=100)
         for curr_epoch in range(num_epochs):
+
             print("Epoch.......", curr_epoch)
             train_cost = train_ler = 0
+            START = 0
             for batch in range(BATCHES):
+                print(batch)
                 start = time.time()
                 c, steps = do_batch()
 
