@@ -21,7 +21,7 @@ def ResizeImage(img):
 
 def GroundTruthtoTupleList(filename):
     """
-    Read an img file and its txt file and 
+    Read an img file and its txt file and
     turn each ground truth to tuple (x, y, h, w, theta).
         (x, y) : geometric center of the bounding box
         h : short side of the bounding box
@@ -30,13 +30,15 @@ def GroundTruthtoTupleList(filename):
 
     Input : filename
 
-    Output : img from cv.imread, 
+    Output : img from cv.imread,
              list of tuples
     """
 
-    filename_img = "image_1000/" + filename
-    filename_txt = "txt_1000/" + filename.split(".jpg")[0] + ".txt"
+    filename_img = filename
+    filename_txt = filename.replace("image", "txt", 1).split(".jpg")[0] + ".txt"
     img = cv2.imread(filename_img)
+    if img is None :
+        return None, None
     l = list()
 
     with open(filename_txt, 'r') as f:
@@ -61,7 +63,7 @@ def GroundTruthtoTupleList(filename):
             l.append(t)
     return img, l
 
-def GetBlobs(filename):
+def GetBlobs(dirname):
     """
     Given a filename and return blobs of the file.
     'Blobs' is a dict contains imagedata, groundtruth and imageinfo.
@@ -71,15 +73,20 @@ def GetBlobs(filename):
     Output : blobs
     """
 
-    img, l = GroundTruthtoTupleList(filename)
-    img, s = ResizeImage(img)
-    blobs = {'data': img, 'gt_list': l, 'im_info': np.array([img.shape[0], img.shape[1], s])}
-    # NOTE : The list of groundtruth box is using the origion data.
+    blobs = []
+
+    for filename in os.listdir(dirname):
+        img, l = GroundTruthtoTupleList(dirname + filename)
+        if img is None :
+            continue
+        img, s = ResizeImage(img)
+        # NOTE : The list of groundtruth box is using the origion data.
+        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[0], img.shape[1], s])})
+
     return blobs
 
 if __name__ == "__main__":
-    for filename in os.listdir('image_1000/'):
-        blobs = GetBlobs(filename)
-        print(blobs)
-        cv2.imshow('img', blobs['data'])
-        cv2.waitKey(0)
+    blobs = GetBlobs('../../image_1000/')
+    print(blobs[0])
+    cv2.imshow('img', blobs[0]['data'])
+    cv2.waitKey(0)
