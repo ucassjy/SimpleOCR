@@ -4,13 +4,15 @@ import matplotlib.pyplot as plt
 import cv2
 import time
 import os
+from tensorflow.python import debug as tf_debug
+from tensorflow.contrib import rnn
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 from give_label import give_label
 
 # MAX_CHARACTER = 50
 # LOAD IN
 Threshold = 50
-MAX_LENGTH = 15 * Threshold
+MAX_LENGTH = 5 * Threshold
 
 label_origin, filename = give_label()
 
@@ -18,15 +20,15 @@ label_origin, filename = give_label()
 
 OUTPUT_SHAPE = (Threshold, MAX_LENGTH) #(50,750)
 num_epochs = 10000
-
-num_hidden = 64
-num_layers = 8
-INITIAL_LEARNING_RATE = 0.08
-DECAY_STEPS = 1000
+#
+# num_hidden = 256
+# num_layers = 2
+INITIAL_LEARNING_RATE = 0.01
+DECAY_STEPS = 50
 REPORT_STEPS = 10
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOMENTUM = 0.9
-BATCH_SIZE = 1
+BATCH_SIZE = 20
 BATCHES = int(len(filename)/BATCH_SIZE) + 1
 TRAIN_SIZE = BATCHES * BATCH_SIZE
 num_classes = 166
@@ -148,158 +150,280 @@ def avg_pool(x, ksize=(2, 2), stride=(2, 2)):
 def convolutional_layers():
     #输入数据，shape [batch_size, max_stepsize, num_features]
 
-    train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE,0, label_origin)
+    train_inputs, _, train_seq_len = get_input_label(BATCH_SIZE,0, label_origin)
 #    inputs = tf.placeholder(tf.float32, [None, None, OUTPUT_SHAPE[0]])
     inputs = np.float32(train_inputs)
-
     #第一层卷积层, 50*750*1 => 25*375*48
     W_conv1 = weight_variable([5, 5, 1, 48])
     b_conv1 = bias_variable([48])
     x_expanded = tf.expand_dims(inputs, 3)
     h_conv1 = tf.nn.relu(conv2d(x_expanded, W_conv1) + b_conv1)
+#    h_conv1 = tf.layers.batch_normalization(h_conv1)
     h_pool1 = max_pool(h_conv1, ksize=(2, 2), stride=(2, 2))
+
 
     #第二层, 25*375*48 => 13*188*64
     W_conv2 = weight_variable([5, 5, 48, 64])
     b_conv2 = bias_variable([64])
     h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+    h_conv2 = tf.layers.batch_normalization(h_conv2)
     h_pool2 = max_pool(h_conv2, ksize=(2, 2), stride=(2, 2))
 
     #第三层, 13*188*64 => 7*94*128
     W_conv3 = weight_variable([5, 5, 64, 128])
     b_conv3 = bias_variable([128])
     h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
+#    h_conv3 = tf.layers.batch_normalization(h_conv3)
     h_pool3 = max_pool(h_conv3, ksize=(2, 2), stride=(2, 2))
 
+    W_conv4 = weight_variable([5, 5, 128, 256])
+    b_conv4 = bias_variable([256])
+    h_conv4 = tf.nn.relu(conv2d(h_pool3, W_conv4) + b_conv4)
+#   h_conv4 = tf.layers.batch_normalization(h_conv4)
+    h_pool4 = max_pool(h_conv4, ksize=(2, 2), stride=(2, 2))
+
+    W_conv5 = weight_variable([5, 5, 256, 512])
+    b_conv5 = bias_variable([512])
+    h_conv5 = tf.nn.relu(conv2d(h_pool4, W_conv5) + b_conv5)
+#    h_conv5 = tf.layers.batch_normalization(h_conv5)
+    h_pool5 = max_pool(h_conv5, ksize=(2, 2), stride=(2, 2))
 
 
 #    全连接
 
-    W_fc1 = weight_variable([7 * 94 * 128, OUTPUT_SHAPE[1]])
+    W_fc1 = weight_variable([2 * 8 * 512, OUTPUT_SHAPE[1]])
     b_fc1 = bias_variable([OUTPUT_SHAPE[1]])
 
-    conv_layer_flat = tf.reshape(h_pool3, [-1, 7 * 94 * 128])
+    conv_layer_flat = tf.reshape(h_pool5, [-1, 2 * 8 * 512])
 
     features = tf.nn.relu(tf.matmul(conv_layer_flat, W_fc1) + b_fc1)
+
+
+
     #（batchsize,256）
     shape = tf.shape(features)
     features = tf.reshape(features, [shape[0], OUTPUT_SHAPE[1], 1])  # batchsize * outputshape * 1
-    print(features.shape)
-    # CONNECT DIRECTLY WITH LSTM
-    # return inputs,features
-    return inputs, features, train_seq_len, train_targets
+
+    return inputs, features, train_seq_len
+
+
+def LSTM_layers(inputs, seq_len):
+
+
+    with tf.variable_scope(None, default_name="bidirectional-rnn-1"):
+        # Forward
+        lstm_fw_cell_1 = rnn.BasicLSTMCell(256)
+        # Backward
+        lstm_bw_cell_1 = rnn.BasicLSTMCell(256)
+
+        inter_output, _ = tf.nn.bidirectional_dynamic_rnn(lstm_fw_cell_1, lstm_bw_cell_1, inputs, seq_len, dtype=tf.float32)
+
+        inter_output = tf.concat(inter_output, 2)
+
+    with tf.variable_scope(None, default_name="bidirectional-rnn-2"):
+        # Forward
+        lstm_fw_cell_2 = rnn.BasicLSTMCell(256)
+        # Backward
+        lstm_bw_cell_2 = rnn.BasicLSTMCell(256)
+
+        outputs, _ = tf.nn.bidirectional_dynamic_rnn(lstm_fw_cell_2, lstm_bw_cell_2, inter_output, seq_len, dtype=tf.float32)
+
+        outputs = tf.concat(outputs, 2)
+
+    return outputs
+
 def get_train_model():
-    #features = convolutional_layers()
-    #print features.get_shape()
+    global_step = tf.Variable(0, trainable=False)
 
-    # inputs = tf.placeholder(tf.float32, [None, None, OUTPUT_SHAPE[0]])\
-    inputs, features, seq_len, targets = convolutional_layers() # IN THIS NETWORK, H_POOL3 IS INPUT
-    seq_len = np.int32(seq_len)
-    seq_len = (tf.convert_to_tensor(seq_len))
-    #targets = tf.convert_to_tensor(targets)
+    inputs, features, train_seq_len = convolutional_layers()
 
-    #定义ctc_loss需要的稀疏矩阵
-    targets = tf.sparse_placeholder(tf.int32)
+    crnn_model = LSTM_layers(features, train_seq_len)
 
-    #1维向量 序列长度 [batch_size,]
-#    seq_len = tf.placeholder(tf.int32, [None])
+    logits = tf.reshape(crnn_model, [-1, 512])
 
-    #定义LSTM网络
-    cell = tf.contrib.rnn.LSTMCell(num_hidden, state_is_tuple=True)
-    stack = tf.contrib.rnn.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
-    outputs, _ = tf.nn.dynamic_rnn(cell, features, seq_len, dtype=tf.float32)
 
-    # shape = tf.shape(inputs)
-    shape = tf.shape(features)
-    batch_s, max_timesteps = shape[0], shape[1]
+    W = tf.Variable(tf.truncated_normal([512,num_classes],stddev=0.1),name="W",dtype=tf.float32)
+    b = tf.Variable(tf.constant(0., shape=[num_classes]),name="b", dtype=tf.float32)
 
-    outputs = tf.reshape(outputs, [-1, num_hidden])
-    W = tf.Variable(tf.truncated_normal([num_hidden,
-                                          num_classes],
-                                         stddev=0.1), name="W")
-    b = tf.Variable(tf.constant(0., shape=[num_classes]), name="b")
-
-    logits = tf.matmul(outputs, W) + b
-
-    logits = tf.reshape(logits, [batch_s, -1, num_classes])
+    logits = tf.matmul(logits,W)+b
+    logits = tf.reshape(logits,[BATCH_SIZE, -1, num_classes])
 
     logits = tf.transpose(logits, (1, 0, 2))
 
-    return logits, inputs, targets, seq_len, W, b
+    targets = tf.sparse_placeholder(tf.int32, name='targets')
 
-def train():
+    loss = tf.nn.ctc_loss(targets, logits, train_seq_len)
 
-    START = 0
-
-    global_step = tf.Variable(0, trainable=False)
-    learning_rate = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                                global_step,
-                                                DECAY_STEPS,
-                                                LEARNING_RATE_DECAY_FACTOR,
-                                                staircase=True)
-    logits, inputs, targets, seq_len, W, b = get_train_model()
-
-    loss = tf.nn.ctc_loss(labels=targets,inputs=logits, sequence_length=seq_len)
     cost = tf.reduce_mean(loss)
 
-    #optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate,momentum=MOMENTUM).minimize(cost, global_step=global_step)
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss,global_step=global_step)
-    # decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
-    decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len, merge_repeated = False)
+    optimizer = tf.train.AdamOptimizer(learning_rate = INITIAL_LEARNING_RATE).minimize(cost, global_step = global_step)
+
+    decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, train_seq_len)
+    #decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, train_seq_len)
+    dense_decoded = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
+
     acc = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
 
     init = tf.global_variables_initializer()
 
-    def do_report():
-        test_inputs,test_targets,test_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
-        print("DIFFICULT?")
-        test_feed = {
-                     targets: test_targets
-                     }
 
-        dd, log_probs, accuracy = session.run([decoded[0], log_prob, acc], test_feed)
-        print("accuracy",accuracy)
-        print("LOG", log_probs)
-        report_accuracy(dd, test_targets)
-        # decoded_list = decode_sparse_tensor(dd)
-
-    def do_batch():
-        train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
-        feed = {targets: train_targets}
-        b_loss,b_targets, b_logits, b_seq_len,b_cost, steps, _ = session.run([loss, targets, logits, seq_len, cost, global_step, optimizer], feed)
-
-        #print b_loss
-        #print b_targets, b_logits, b_seq_len
-        print(b_cost, steps)
+    return inputs, targets, train_seq_len, logits, decoded, optimizer, acc,cost, init, global_step
 
 
-        if steps > 0 and steps % REPORT_STEPS == 0:
-            do_report()
-            print("DO REPORT")
-            #save_path = saver.save(session, "ocr.model", global_step=steps)
-            # print(save_path)
 
-        return b_cost, steps
 
+
+
+
+
+
+
+
+
+
+
+
+
+#
+#     # inputs = tf.placeholder(tf.float32, [None, None, OUTPUT_SHAPE[0]])\
+#     inputs, features, seq_len, targets = convolutional_layers() # IN THIS NETWORK, H_POOL3 IS INPUT
+#     seq_len = np.int32(seq_len)
+#     seq_len = (tf.convert_to_tensor(seq_len))
+#     #targets = tf.convert_to_tensor(targets)
+#
+#     #定义ctc_loss需要的稀疏矩阵
+#     targets = tf.sparse_placeholder(tf.int32)
+#
+#     #1维向量 序列长度 [batch_size,]
+# #    seq_len = tf.placeholder(tf.int32, [None])
+#
+#     #定义LSTM网络
+#     cell = tf.contrib.rnn.LSTMCell(num_hidden, state_is_tuple=True)
+#     stack = tf.contrib.rnn.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
+#     outputs, _ = tf.nn.dynamic_rnn(cell, features, seq_len, dtype=tf.float32)
+#     # shape = tf.shape(inputs)
+#     shape = tf.shape(features)
+#     batch_s, max_timesteps = shape[0], shape[1]
+#     outputs = tf.reshape(outputs, [-1, num_hidden])
+#     W = tf.Variable(tf.truncated_normal([num_hidden,
+#                                           num_classes],
+#                                          stddev=0.1), name="W")
+#     b = tf.Variable(tf.constant(0., shape=[num_classes]), name="b")
+#     logits = tf.matmul(outputs, W) + b
+#     logits = tf.reshape(logits, [batch_s, -1, num_classes])
+#     logits = tf.transpose(logits, (1, 0, 2))
+#
+#     return logits, inputs, targets, seq_len, W, b
+
+def train():
     with tf.Session() as session:
+        tensorboard_dir = 'tensorboard'
+        if not os.path.exists(tensorboard_dir):
+            os.makedirs(tensorboard_dir)
+        writer = tf.summary.FileWriter(tensorboard_dir)
 
+
+        inputs, targets, train_seq_len, logits, decoded, optimizer, acc,cost, init, global_step = get_train_model()
         session.run(init)
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=100)
-        for curr_epoch in range(num_epochs):
+        START = 0
 
-            print("Epoch.......", curr_epoch)
-            train_cost = train_ler = 0
+
+        learning_rate = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
+                                                    global_step,
+                                                    DECAY_STEPS,
+                                                    LEARNING_RATE_DECAY_FACTOR,
+                                                    staircase=True)
+        for curr_epoch in range(1):
+            train_cost = 0
             START = 0
-            for batch in range(1):
-                print(batch)
+            print("EPOCH", curr_epoch)
+
+            for i in range(1):
+                print("BATCH", i)
                 start = time.time()
-                c, steps = do_batch()
+                train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
+                feed = {targets: train_targets}
+                [c, accuracy,decoded_list, original_list, steps, _] = session.run([cost, acc, decoded[0], targets, global_step, optimizer],feed)
+
+                decoded_list = decode_sparse_tensor(decoded_list)
+                original_list = decode_sparse_tensor(original_list)
+                print(c,accuracy)
+                print(decoded_list)
+                print(original_list)
+                print("STEPS:", steps)
 
                 START = START + BATCH_SIZE
-                train_cost += c * BATCH_SIZE
+                # train_cost += c * BATCH_SIZE
                 seconds = time.time() - start
-                print("Step:", steps, ", batch seconds:", seconds)
-            # train_cost /= TRAIN_SIZE
+
+                print( "batch seconds:", seconds)
+
+        writer.add_graph(session.graph)
+
+
+    # logits, inputs, targets, seq_len, W, b = get_train_model()
+
+    # loss = tf.nn.ctc_loss(labels=targets,inputs=logits, sequence_length=seq_len)
+    # cost = tf.reduce_mean(loss)
+    #
+    # #optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate,momentum=MOMENTUM).minimize(cost, global_step=global_step)
+    # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss,global_step=global_step)
+    # # decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len, merge_repeated=False)
+    # decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len, merge_repeated = False)
+    # acc = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
+    #
+    # init = tf.global_variables_initializer()
+
+    # def do_report():
+    #     test_inputs,test_targets,test_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
+    #     print("DIFFICULT?")
+    #     test_feed = {
+    #                  targets: test_targets
+    #                  }
+    #
+    #     dd, log_probs, accuracy = session.run([decoded[0], log_prob, acc], test_feed)
+    #     print("accuracy",accuracy)
+    #     print("LOG", log_probs)
+    #     report_accuracy(dd, test_targets)
+    #     # decoded_list = decode_sparse_tensor(dd)
+    #
+    # def do_batch():
+    #     train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
+    #     feed = {targets: train_targets}
+    #     b_loss,b_targets, b_logits, b_seq_len,b_cost, steps, _ = session.run([loss, targets, logits, seq_len, cost, global_step, optimizer], feed)
+    #
+    #     #print b_loss
+    #     #print b_targets, b_logits, b_seq_len
+    #     print(b_cost, steps)
+    #
+    #
+    #     if steps > 0 and steps % REPORT_STEPS == 0:
+    #         do_report()
+    #         print("DO REPORT")
+    #         #save_path = saver.save(session, "ocr.model", global_step=steps)
+    #         # print(save_path)
+    #
+    #     return b_cost, steps
+    #
+    # with tf.Session() as session:
+    #
+    #     session.run(init)
+    #     saver = tf.train.Saver(tf.global_variables(), max_to_keep=100)
+    #     for curr_epoch in range(num_epochs):
+    #
+    #         print("Epoch.......", curr_epoch)
+    #         train_cost = train_ler = 0
+    #         START = 0
+    #         for batch in range(1):
+    #             print(batch)
+    #             start = time.time()
+    #             c, steps = do_batch()
+    #
+    #             START = START + BATCH_SIZE
+    #             train_cost += c * BATCH_SIZE
+    #             seconds = time.time() - start
+    #             print("Step:", steps, ", batch seconds:", seconds)
+    #         # train_cost /= TRAIN_SIZE
             #
             # train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
             #
@@ -315,37 +439,5 @@ def train():
             # print(log.format(curr_epoch + 1, num_epochs, steps, train_cost, train_ler, val_cost, val_ler, time.time() - start, lr))
 
 if __name__ == '__main__':
-    # inputs, sparse_targets,seq_len = get_input_label(BATCH_SIZE, START, label_origin)
-    # decode_sparse_tensor(sparse_targets)
+
     train()
-
-#get_input_label(BATCH_SIZE, START, label_origin)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# for i in range(len(filename)):
-#     img = cv2.imread(filename[i], cv2.IMREAD_GRAYSCALE)
-#     img = img[:,0:MAX_LENGTH]
-#     if img is None:
-#         continue
-#
