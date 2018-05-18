@@ -1,10 +1,8 @@
-import math
-import itertools
 import numpy as np
 
 def _ratio_scales(ratios, scales):
     """
-    Enumerate the 9 heights and widths by 3 given ratios and 3 given scales.
+    Enumerate a set of anchors for each aspect ratio wrt an anchor.
     """
 
     ss = np.repeat(scales, 3)
@@ -19,7 +17,7 @@ def _ratio_scales(ratios, scales):
     hws = np.concatenate((hs, ws), axis=1)
     return hws
 
-def generate_anchors(xmax, ymax):
+def generate_anchors():
     """
     Generate anchor windows by enumerating aspect ratios, scales and angles.
 
@@ -27,13 +25,14 @@ def generate_anchors(xmax, ymax):
     Output : list contains np.array (x, y, h, w, theta), defined same as in readfile.py.
     """
 
-    ratios = np.array([2, 5, 8])
-    scales = np.array([8, 16, 32])
-    angles = [-math.pi/6, 0.0, math.pi/6, math.pi/3, math.pi/2, 2*math.pi/3]
-    xs = np.arange(0, xmax)
-    ys = np.arange(0, ymax)
+    ratios = [0.125, 0.2, 0.5]
+    scales = [16*8, 16*16, 16*32]
+    angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
 
-    xys = np.transpose([np.tile(xs, ymax), np.repeat(ys, xmax)])
+    xs = np.arange(0, 1)
+    ys = np.arange(0, 1)
+
+    xys = np.transpose([np.tile(xs, 1), np.repeat(ys, 1)])
     hws = _ratio_scales(ratios, scales)
     angles = np.array([[np.array(a)] for a in angles])
 
@@ -43,5 +42,8 @@ def generate_anchors(xmax, ymax):
     return anchors
 
 if __name__ == '__main__':
-    a = generate_anchors(10, 10)
+    import time
+    t = time.time()
+    a = generate_anchors()
+    print(time.time() - t)
     print(a, len(a))
