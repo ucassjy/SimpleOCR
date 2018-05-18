@@ -29,16 +29,11 @@ def generate_anchors():
     scales = [16*8, 16*16, 16*32]
     angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
 
-    xs = np.arange(0, 1)
-    ys = np.arange(0, 1)
-
-    xys = np.transpose([np.tile(xs, 1), np.repeat(ys, 1)])
     hws = _ratio_scales(ratios, scales)
     angles = np.array([[np.array(a)] for a in angles])
 
-    anchors = [np.concatenate((xys[i], hws[j], angles[k])) for i in range(len(xys))
-                                                           for j in range(len(hws))
-                                                           for k in range(6)]
+    anchors = [np.concatenate(((0, 0), hws[j], angles[k])) for j in range(len(hws))
+                                                         for k in range(6)]
     return anchors
 
 if __name__ == '__main__':

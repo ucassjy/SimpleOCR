@@ -31,7 +31,7 @@ def get_pretrained_net(sess, net):
     sess.run(tf.assign(v_to_fix['vgg_16/conv1/conv1_1/weights:0'], tf.reverse(conv1_rgb, [2])))
     return net
 
-def img2fm(image):
+def img2fm(image, is_training):
     with tf.variable_scope('vgg_16', 'vgg_16'):
         net = slim.repeat(image, 2, slim.conv2d, 64, [3, 3],
                             trainable=False, scope='conv1')
@@ -42,9 +42,11 @@ def img2fm(image):
         net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3],
                             trainable=False, scope='conv3')
         net = slim.max_pool2d(net, [2, 2], padding='SAME', scope='pool3')
-        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
+                            trainable=is_training, scope='conv4')
         net = slim.max_pool2d(net, [2, 2], padding='SAME', scope='pool4')
-        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],  scope='conv5')
+        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3],
+                            trainable=is_training, scope='conv5')
 
     return net
 
