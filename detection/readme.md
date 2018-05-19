@@ -22,3 +22,4 @@ The VGG-16 is used to provide a feature map of the input image. With the feature
 * Multi-Oriented Scene Text Detection via Corner Localization and Region Segmentation, https://arxiv.org/abs/1802.08948
 * RPN, https://blog.csdn.net/wfei101/article/details/78821629
 * Faster R-CNN: [Original paper translated into Chinese](https://blog.csdn.net/lwplwf/article/details/74906205); [Discussion 1](https://blog.csdn.net/xbcReal/article/details/76180912), [Discussion 2](https://blog.csdn.net/bailufeiyan/article/details/50575150)
+* R-CNN: [Discussion](https://blog.csdn.net/xbcreal/article/details/76035979)
