@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import cv2
 import time
 import os
+
 from tensorflow.python import debug as tf_debug
 from tensorflow.contrib import rnn
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
@@ -19,7 +20,7 @@ label_origin, filename = give_label()
 #TENSORFLOW TIME
 
 OUTPUT_SHAPE = (Threshold, MAX_LENGTH) #(50,750)
-num_epochs = 10000
+num_epochs = 300
 #
 # num_hidden = 256
 # num_layers = 2
@@ -28,10 +29,10 @@ DECAY_STEPS = 50
 REPORT_STEPS = 10
 LEARNING_RATE_DECAY_FACTOR = 0.9
 MOMENTUM = 0.9
-BATCH_SIZE = 20
+BATCH_SIZE = 300
 BATCHES = int(len(filename)/BATCH_SIZE) + 1
 TRAIN_SIZE = BATCHES * BATCH_SIZE
-num_classes = 166
+num_classes = 2240
  # NEED TO BE CHANGE IN Session #NOTE
 
 def decode_dictionary():
@@ -108,9 +109,7 @@ def get_input_label(BATCH_SIZE, START, label_origin):
         img = cv2.imread(filename[i + START], cv2.IMREAD_GRAYSCALE)
         img = img[:,0:MAX_LENGTH]
         img = np.transpose(img)
-
         input[i,:,:] =  img
-
     target = label_origin[START:START+BATCH_SIZE]
 
     sparse_target = sparse_tuple_from(target)
@@ -259,7 +258,7 @@ def get_train_model():
     optimizer = tf.train.AdamOptimizer(learning_rate = INITIAL_LEARNING_RATE).minimize(cost, global_step = global_step)
 
     decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, train_seq_len)
-    #decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, train_seq_len)
+#    decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, train_seq_len)
     dense_decoded = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
 
     acc = tf.reduce_mean(tf.edit_distance(tf.cast(decoded[0], tf.int32), targets))
@@ -268,19 +267,6 @@ def get_train_model():
 
 
     return inputs, targets, train_seq_len, logits, decoded, optimizer, acc,cost, init, global_step
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -338,18 +324,19 @@ def train():
             START = 0
             print("EPOCH", curr_epoch)
 
-            for i in range(1):
+            for i in range(BATCHES):
                 print("BATCH", i)
                 start = time.time()
                 train_inputs, train_targets, train_seq_len = get_input_label(BATCH_SIZE, START, label_origin)
                 feed = {targets: train_targets}
-                [c, accuracy,decoded_list, original_list, steps, _] = session.run([cost, acc, decoded[0], targets, global_step, optimizer],feed)
-
-                decoded_list = decode_sparse_tensor(decoded_list)
-                original_list = decode_sparse_tensor(original_list)
-                print(c,accuracy)
-                print(decoded_list)
-                print(original_list)
+                [c, accuracy, original_list, steps, _] = session.run([cost, acc, targets, global_step, optimizer],feed)
+                if steps % REPORT_STEPS == 0:
+                    decoded_list = session.run(decoded[0])
+                    decoded_list = decode_sparse_tensor(decoded_list)
+                    original_list = decode_sparse_tensor(original_list)
+                    print(c,accuracy)
+                    print(decoded_list)
+                    print(original_list)
                 print("STEPS:", steps)
 
                 START = START + BATCH_SIZE
@@ -439,5 +426,4 @@ def train():
             # print(log.format(curr_epoch + 1, num_epochs, steps, train_cost, train_ler, val_cost, val_ler, time.time() - start, lr))
 
 if __name__ == '__main__':
-
     train()
