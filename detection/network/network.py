@@ -5,24 +5,25 @@ from network import rpn
 import tensorflow as tf
 
 class Network(object):
-    def __init__(self, mode, sess):
+    def __init__(self, mode, sess, blobs):
         self.is_training = mode == 'TRAIN'
         self._sess = sess
-        #self.init_saver()
+        self._blobs = blobs
 
     def build_network(self):
-        self._img = tf.placeholder(tf.float32, shape=[1, None, None, 3])
-        self._im_info = tf.placeholder(tf.float32, shape=[3])
-        self._gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
+        self._img = self._blobs[0]['data'] #tf.placeholder(tf.float32, shape=[1, None, None, 3])
+        self._img = self._img.reshape((1, self._img.shape[0], self._img.shape[1], 3))
+        self._im_info = self._blobs[0]['im_info'] #tf.placeholder(tf.float32, shape=[3])
+        self._gt_boxes = self._blobs[0]['gt_list'] #tf.placeholder(tf.float32, shape=[None, 5])
 
         # network architecture
         net = vgg16.img2fm(self._img, self.is_training)
         net = vgg16.get_pretrained_net(self._sess, net)
-        net = rpn.rpn(net, self._im_info[:2])
+        net, cls_scores, reg_coords = rpn.rpn(net)
         anchors = generate_anchors.generate_anchors()
-        anchors = rpn.reduce_anchors_and_get_iou(self._img, self._im_info, self._gt_boxes, anchors)
+        anchors = rpn.anchors_in_image(self._im_info, anchors, net.shape[1:3])
         print(net)
-        print(anchors)
+        print(len(anchors))
         #d1 = tf.layers.dense(self.x, 512, activation=tf.nn.relu, name="dense1")
         #d2 = tf.layers.dense(d1, 10, name="dense2")
 

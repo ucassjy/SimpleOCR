@@ -26,7 +26,7 @@ def generate_anchors():
     """
 
     ratios = [0.125, 0.2, 0.5]
-    scales = [16*8, 16*16, 16*32]
+    scales = [64*8, 64*16, 64*32]
     angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
 
     hws = _ratio_scales(ratios, scales)
