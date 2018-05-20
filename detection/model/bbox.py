@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 def bbox_transform(ex_rois, gt_rois):
@@ -53,4 +54,34 @@ def clip_boxes_tf(boxes, im_info):
     return tf.stack([b0, b1, b2, b3], axis=1)
 
 def bbox_overlaps(boxes, query_boxes):
-    return boxex.T[0]
+    # def max(a,b):
+    #     return a if a > b else b
+    # def min(a,b):
+    #     return a if a < b else b
+    N = boxes.shape[0]
+    K = query_boxes.shape[0]
+    overlaps = np.reshape(np.zeros((N, K)), (N,K))
+
+    for k in range(K):
+        box_area = (
+            (query_boxes[k,2] - query_boxes[k, 0] + 1) *
+            (query_boxes[k, 3] - query_boxes[k, 1] + 1)
+        )
+        for n in range(N):
+            iw = (
+                min(boxes[n,2], query_boxes[k,2]) -
+                max(boxes[n,0], query_boxes[k,0]) + 1
+            )
+            if iw > 0:
+                ih = (
+                    min(boxes[n, 3], query_boxes[k, 3]) -
+                    max(boxes[n, 1], query_boxes[k, 1]) + 1
+                )
+                if ih > 0:
+                    ua = float(
+                        (boxes[n, 2] - boxes[n, 0] + 1) *
+                        (boxes[n, 3] - boxes[n, 1] + 1) +
+                        box_area - iw * ih
+                    )
+                    overlaps[n,k] = iw * ih / ua
+    return overlaps

@@ -17,10 +17,10 @@ class SolverWrapper(object):
         self.tbvaldir = tbdir + '_val'
         if not os.path.exists(self.tbvaldir):
             os.makedirs(self.tbvaldir)
-        self.pretrained_model = pretrained_model
+        self.pretrained_model = 'nets/vgg16.ckpt'
 
-    def get_variables_in_checkpoint_file(self, file_name):
-        reader = pywrap_tensorflow.NewCheckpointReader(file_name)
+    def get_variables_in_checkpoint_file(self):
+        reader = pywrap_tensorflow.NewCheckpointReader('nets/vgg16.ckpt')
         var_to_shape_map = reader.get_variable_to_shape_map()
         return var_to_shape_map
 
@@ -48,11 +48,11 @@ class SolverWrapper(object):
 
     def initialize(self, sess):
         # Fresh train directly from ImageNet weights
-        print('Loading initial model weights from {:s}'.format(self.pretrained_model))
+        print('Loading initial model weights from vgg16') #.format(self.pretrained_model))
         variables = tf.global_variables()
         # Initialize all variables first
         sess.run(tf.variables_initializer(variables, name='init'))
-        var_keep_dic = self.get_variables_in_checkpoint_file(self.pretrained_model)
+        var_keep_dic = self.get_variables_in_checkpoint_file()
         # Get the variables to restore, ignoring the variables to fix
         variables_to_restore = self.net.get_variables_to_restore(variables, var_keep_dic)
 
@@ -73,15 +73,13 @@ class SolverWrapper(object):
         lr, train_op = self.construct_graph(sess)
 
         for i in range(10):
+            if i == 0:
+                rate = self.initialize(sess)
+            # Learning rate
+            if i == 8:
+                rate *= 0.1
+                sess.run(tf.assign(lr, rate))
             for j in range(len(self.blobs_all)):
-                if i == 0:
-                    rate = self.initialize(sess)
-
-                # Learning rate
-                if i == 8:
-                    rate *= 0.1
-                    sess.run(tf.assign(lr, rate))
-
                 # Get training data, one batch at a time
                 blobs = self.blobs_all[j]
 
@@ -95,10 +93,10 @@ class SolverWrapper(object):
                     rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss = \
                         self.net.train_step(sess, blobs, train_op)
 
-                # Display training information
-                print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-                    '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
-                    (i, max_iters, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+            # Display training information
+            print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
+                '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
+                (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
 
         self.writer.close()
         self.valwriter.close()
@@ -113,6 +111,6 @@ def train_net(network, blobs_all, valblobs_all, output_dir, tb_dir, pretrained_m
         sw = SolverWrapper(sess, network, blobs_all, valblobs_all, output_dir, tb_dir,
                     pretrained_model=pretrained_model)
 
-    print('Solving...')
-    sw.train_model(sess)
+        print('Solving...')
+        sw.train_model(sess)
     print('Done solving.')

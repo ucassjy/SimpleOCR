@@ -53,13 +53,15 @@ def GroundTruthtoTupleList(filename):
             [[X_center, Y_center], [h, w], angle] = cv2.minAreaRect(cnt)
 
             if h > w :
-                h, w = w, h
+#                h, w = w, h
                 angle += 90
 
             if angle < -45.0 :
                 angle += 180
 
             t = (X_center, Y_center, h, w, angle)
+            # TODO: change the groundtruth boxes
+            t = (X_center-w/2, X_center+w/2, Y_center-h/2, Y_center+h/2, 1)
             l.append(t)
     return img, l
 
@@ -75,14 +77,18 @@ def GetBlobs(dirname):
 
     blobs = []
 
+    i = 0
     for filename in os.listdir(dirname):
         img, l = GroundTruthtoTupleList(dirname + filename)
         if img is None :
             continue
         img, s = ResizeImage(img)
+        img = img.reshape(1, img.shape[0], -1, 3)
         l = [(li[0]*s, li[1]*s, li[2]*s, li[3]*s, li[4]) for li in l]
-        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[0], img.shape[1], s])})
-        break
+        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])})
+        i = i + 1
+        if i == 20:
+            break
 
     return blobs
 

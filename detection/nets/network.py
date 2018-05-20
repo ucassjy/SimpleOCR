@@ -25,24 +25,24 @@ class Network(object):
         self._variables_to_fix = {}
         self._num_anchors = 9
 
-  # def _add_gt_image_summary(self):
-  #   # use a customized visualization function to visualize the boxes
-  #   image = tf.py_func(draw_bounding_boxes,
-  #                     [self._image, self._gt_boxes, self._im_info],
-  #                     tf.float32, name="gt_boxes")
-  #
-  #   return tf.summary.image('GROUND_TRUTH', image)
-  #
-  # def _add_act_summary(self, tensor):
-  #   tf.summary.histogram('ACT/' + tensor.op.name + '/activations', tensor)
-  #   tf.summary.scalar('ACT/' + tensor.op.name + '/zero_fraction',
-  #                     tf.nn.zero_fraction(tensor))
-  #
-  # def _add_score_summary(self, key, tensor):
-  #   tf.summary.histogram('SCORE/' + tensor.op.name + '/' + key + '/scores', tensor)
-  #
-  # def _add_train_summary(self, var):
-  #   tf.summary.histogram('TRAIN/' + var.op.name, var)
+    def _add_gt_image_summary(self):
+        # use a customized visualization function to visualize the boxes
+        image = tf.py_func(draw_bounding_boxes,
+                        [self._image, self._gt_boxes, self._im_info],
+                        tf.float32, name="gt_boxes")
+
+        return tf.summary.image('GROUND_TRUTH', image)
+
+    def _add_act_summary(self, tensor):
+        tf.summary.histogram('ACT/' + tensor.op.name + '/activations', tensor)
+        tf.summary.scalar('ACT/' + tensor.op.name + '/zero_fraction',
+                        tf.nn.zero_fraction(tensor))
+
+    def _add_score_summary(self, key, tensor):
+        tf.summary.histogram('SCORE/' + tensor.op.name + '/' + key + '/scores', tensor)
+
+    def _add_train_summary(self, var):
+        tf.summary.histogram('TRAIN/' + var.op.name, var)
 
     def _reshape_layer(self, bottom, num_dim, name):
         input_shape = tf.shape(bottom)
@@ -137,9 +137,9 @@ class Network(object):
         rois.set_shape([128, 5])
         roi_scores.set_shape([128])
         labels.set_shape([128, 1])
-        bbox_targets.set_shape([128])
-        bbox_inside_weights.set_shape([128])
-        bbox_outside_weights.set_shape([128])
+        bbox_targets.set_shape([128, 8])
+        bbox_inside_weights.set_shape([128, 8])
+        bbox_outside_weights.set_shape([128, 8])
 
         self._proposal_targets['rois'] = rois
         self._proposal_targets['labels'] = tf.to_int32(labels, name="to_int32")
@@ -189,7 +189,6 @@ class Network(object):
 
     def _smooth_l1_loss(self, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
         sigma_2 = sigma ** 2
-        bbox_targets = tf.reshape(bbox_targets, [-1, 1])
         box_diff = bbox_pred - bbox_targets
         in_box_diff = bbox_inside_weights * box_diff
         abs_in_box_diff = tf.abs(in_box_diff)
@@ -335,16 +334,16 @@ class Network(object):
             layers_to_output.update(self._losses)
 
         val_summaries = []
-        # with tf.device("/cpu:0"):
-        #     val_summaries.append(self._add_gt_image_summary())
-        #     for key, var in self._event_summaries.items():
-        #         val_summaries.append(tf.summary.scalar(key, var))
-        #     for key, var in self._score_summaries.items():
-        #         self._add_score_summary(key, var)
-        #     for var in self._act_summaries:
-        #         self._add_act_summary(var)
-        #     for var in self._train_summaries:
-        #         self._add_train_summary(var)
+        with tf.device("/cpu:0"):
+            val_summaries.append(self._add_gt_image_summary())
+            for key, var in self._event_summaries.items():
+                val_summaries.append(tf.summary.scalar(key, var))
+            for key, var in self._score_summaries.items():
+                self._add_score_summary(key, var)
+            for var in self._act_summaries:
+                self._add_act_summary(var)
+            for var in self._train_summaries:
+                self._add_train_summary(var)
 
         self._summary_op = tf.summary.merge_all()
         self._summary_op_val = tf.summary.merge(val_summaries)
@@ -374,14 +373,14 @@ class Network(object):
 
     def get_summary(self, sess, blobs):
         feed_dict = {self._image: blobs['data'], self._im_info: blobs['im_info'],
-                    self._gt_boxes: blobs['gt_boxes']}
+                    self._gt_boxes: blobs['gt_list']}
         summary = sess.run(self._summary_op_val, feed_dict=feed_dict)
 
         return summary
 
     def train_step(self, sess, blobs, train_op):
         feed_dict = {self._image: blobs['data'], self._im_info: blobs['im_info'],
-                    self._gt_boxes: blobs['gt_boxes']}
+                    self._gt_boxes: blobs['gt_list']}
         rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, loss, _ = sess.run([self._losses["rpn_cross_entropy"],
                                                                             self._losses['rpn_loss_box'],
                                                                             self._losses['cross_entropy'],
@@ -393,7 +392,7 @@ class Network(object):
 
     def train_step_with_summary(self, sess, blobs, train_op):
         feed_dict = {self._image: blobs['data'], self._im_info: blobs['im_info'],
-                    self._gt_boxes: blobs['gt_boxes']}
+                    self._gt_boxes: blobs['gt_list']}
         rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, loss, summary, _ = sess.run([self._losses["rpn_cross_entropy"],
                                                                                     self._losses['rpn_loss_box'],
                                                                                     self._losses['cross_entropy'],
