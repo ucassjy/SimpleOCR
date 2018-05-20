@@ -80,8 +80,9 @@ def GetBlobs(dirname):
         if img is None :
             continue
         img, s = ResizeImage(img)
-        # NOTE : The list of groundtruth box is using the origion data.
+        l = [(li[0]*s, li[1]*s, li[2]*s, li[3]*s, li[4]) for li in l]
         blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[0], img.shape[1], s])})
+        break
 
     return blobs
 
