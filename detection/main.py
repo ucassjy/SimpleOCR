@@ -4,11 +4,9 @@ import tensorflow as tf
 
 from data_loader.data_generator import GetBlobs
 from utils.dirs import create_dirs
-#from models.example_model import ExampleModel
-#from trainers.example_trainer import ExampleTrainer
-#from utils.config import process_config
+from network.network import Network
+from trainers.trainer import Trainer
 #from utils.logger import Logger
-#from utils.utils import get_args
 
 
 def main():
@@ -16,29 +14,29 @@ def main():
 
     # train the network
     if 'train' in arg:
-        # create the needed dirs
+        #  create the needed dirs
         create_dirs(['output/'])
-        # get blobs
+        tensorboard_dir = 'output/'
+        writer = tf.summary.FileWriter(tensorboard_dir)
+        #  get blobs
         blobs = GetBlobs('../image_1000/')
-        print(blobs[0])
-        print(arg)
+        #  create tensorflow session
+        sess = tf.Session()
+        #  create an instance of the network
+        network = Network('TRAIN', sess, blobs)
+        network = network.create_architecture()
+        writer.add_graph(sess.graph)
+        # create trainer and pass all the previous components to it
+#        trainer = Trainer(sess, network, blobs, logger)
 
-    # import the pretrained network and pre
+    # import the pretrained network and show the result for one image
     else :
         print('For test')
 
-    # create tensorflow session
-#    sess = tf.Session()
-    # create an instance of the model you want
-#    model = ExampleModel(config)
     #load model if exists
 #    model.load(sess)
-    # create your data generator
-#    data = DataGenerator(config)
     # create tensorboard logger
 #    logger = Logger(sess, config)
-    # create trainer and pass all the previous components to it
-#    trainer = ExampleTrainer(sess, model, data, config, logger)
 
     # here you train your model
 #    trainer.train()
