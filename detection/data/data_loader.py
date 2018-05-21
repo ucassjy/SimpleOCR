@@ -61,7 +61,7 @@ def GroundTruthtoTupleList(filename):
 
             t = (X_center, Y_center, h, w, angle)
             # TODO: change the groundtruth boxes
-            t = (X_center-w/2, X_center+w/2, Y_center-h/2, Y_center+h/2, 1)
+            t = (min(X), min(Y), max(X), max(Y), 1)
             l.append(t)
     return img, l
 

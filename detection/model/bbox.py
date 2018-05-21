@@ -54,10 +54,6 @@ def clip_boxes_tf(boxes, im_info):
     return tf.stack([b0, b1, b2, b3], axis=1)
 
 def bbox_overlaps(boxes, query_boxes):
-    # def max(a,b):
-    #     return a if a > b else b
-    # def min(a,b):
-    #     return a if a < b else b
     N = boxes.shape[0]
     K = query_boxes.shape[0]
     overlaps = np.reshape(np.zeros((N, K)), (N,K))

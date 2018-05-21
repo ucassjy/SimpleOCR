@@ -20,7 +20,6 @@ def proposal_target_layer(rpn_rois, rpn_scores, gt_boxes):
 
     # Sample rois with classification labels and bounding box regression
     # targets
-#    print(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_image)
     labels, rois, roi_scores, bbox_targets, bbox_inside_weights = _sample_rois(
         all_rois, all_scores, gt_boxes, fg_rois_per_image,
         rois_per_image)
@@ -77,7 +76,6 @@ def _sample_rois(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_ima
     overlaps = bbox_overlaps(
         np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
         np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
-#    print('overlaps : ', overlaps)
     gt_assignment = overlaps.argmax(axis=1)
     max_overlaps = overlaps.max(axis=1)
     labels = gt_boxes[gt_assignment, 4]

@@ -239,6 +239,7 @@ class Network(object):
             self._losses['rpn_loss_box'] = rpn_loss_box
 
             loss = cross_entropy + loss_box + rpn_cross_entropy + rpn_loss_box
+            print('\n\tloss : ', loss)
             regularization_loss = tf.add_n(tf.losses.get_regularization_losses(), 'regu')
             self._losses['total_loss'] = loss + regularization_loss
 
@@ -263,6 +264,7 @@ class Network(object):
                                 padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
         if is_training:
             rois, roi_scores = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois")
+            print('In network, rois after _proposal_layer : ', rois)
             rpn_labels = self._anchor_target_layer(rpn_cls_score, "anchor")
             # Try to have a deterministic order for the computing graph, for reproducibility
             with tf.control_dependencies([rpn_labels]):
@@ -334,16 +336,15 @@ class Network(object):
             layers_to_output.update(self._losses)
 
         val_summaries = []
-        with tf.device("/cpu:0"):
-            val_summaries.append(self._add_gt_image_summary())
-            for key, var in self._event_summaries.items():
-                val_summaries.append(tf.summary.scalar(key, var))
-            for key, var in self._score_summaries.items():
-                self._add_score_summary(key, var)
-            for var in self._act_summaries:
-                self._add_act_summary(var)
-            for var in self._train_summaries:
-                self._add_train_summary(var)
+        val_summaries.append(self._add_gt_image_summary())
+        for key, var in self._event_summaries.items():
+            val_summaries.append(tf.summary.scalar(key, var))
+        for key, var in self._score_summaries.items():
+            self._add_score_summary(key, var)
+        for var in self._act_summaries:
+            self._add_act_summary(var)
+        for var in self._train_summaries:
+            self._add_train_summary(var)
 
         self._summary_op = tf.summary.merge_all()
         self._summary_op_val = tf.summary.merge(val_summaries)

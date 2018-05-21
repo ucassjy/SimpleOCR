@@ -93,10 +93,10 @@ class SolverWrapper(object):
                     rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss = \
                         self.net.train_step(sess, blobs, train_op)
 
-            # Display training information
-            print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-                '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
-                (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+                # Display training information
+                print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
+                    '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
+                    (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
 
         self.writer.close()
         self.valwriter.close()
