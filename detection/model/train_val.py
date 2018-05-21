@@ -33,8 +33,7 @@ class SolverWrapper(object):
             gvs = self.optimizer.compute_gradients(loss)
             train_op = self.optimizer.apply_gradients(gvs)
 
-            # We will handle the snapshots ourselves
-            self.saver = tf.train.Saver(max_to_keep=100000)
+            self.saver = tf.train.Saver(max_to_keep=10000)
             # Write the train and validation information to tensorboard
             self.writer = tf.summary.FileWriter(self.tbdir, sess.graph)
             self.valwriter = tf.summary.FileWriter(self.tbvaldir)
@@ -43,7 +42,7 @@ class SolverWrapper(object):
 
     def initialize(self, sess):
         # Fresh train directly from ImageNet weights
-        print('Loading initial model weights from vgg16') #.format(self.pretrained_model))
+        print('Loading initial model weights from %s'.format(self.pretrained_model))
         variables = tf.global_variables()
         # Initialize all variables first
         sess.run(tf.variables_initializer(variables, name='init'))
@@ -54,9 +53,8 @@ class SolverWrapper(object):
         restorer = tf.train.Saver(variables_to_restore)
         restorer.restore(sess, self.pretrained_model)
         print('Loaded.')
-        # Need to fix the variables before loading, so that the RGB weights are changed to BGR
-        # For VGG16 it also changes the convolutional weights fc6 and fc7 to
-        # fully connected weights
+        # Need to fix the variables before loading to
+        # change the convolutional weights fc6 and fc7 to fully connected weights
         self.net.fix_variables(sess, self.pretrained_model)
         print('Fixed.')
         rate = 0.001
@@ -75,7 +73,7 @@ class SolverWrapper(object):
                 rate *= 0.1
                 sess.run(tf.assign(lr, rate))
             for j in range(len(self.blobs_all)):
-                # Get training data, one batch at a time
+                # Get training data, one image at a time
                 blobs = self.blobs_all[j]
 
                 if i is not 0:
@@ -88,10 +86,10 @@ class SolverWrapper(object):
                     rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, total_loss = \
                         self.net.train_step(sess, blobs, train_op)
 
-                    # Display training information
-                    print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-                        '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
-                        (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+            # Display training information
+            print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
+                    '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
+                    (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
 
         restorer = tf.train.Saver()
         restorer.save(sess, self.output_dir)

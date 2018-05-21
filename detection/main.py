@@ -1,9 +1,3 @@
-# --------------------------------------------------------
-# Tensorflow Faster R-CNN
-# Licensed under The MIT License [see LICENSE for details]
-# Written by Zheqi He, Xinlei Chen, based on code from Ross Girshick
-# --------------------------------------------------------
-
 import os
 import sys
 import tensorflow as tf

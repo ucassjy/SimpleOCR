@@ -1,12 +1,3 @@
-# --------------------------------------------------------
-# Tensorflow Faster R-CNN
-# Licensed under The MIT License [see LICENSE for details]
-# Written by Zheqi he, Xinlei Chen, based on code from Ross Girshick
-# --------------------------------------------------------
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import _init_paths
 from model.test import test_net
 from model.config import cfg, cfg_from_file, cfg_from_list
@@ -17,8 +8,6 @@ import time, os, sys
 
 import tensorflow as tf
 from nets.vgg16 import vgg16
-from nets.resnet_v1 import resnetv1
-from nets.mobilenet_v1 import mobilenetv1
 
 def parse_args():
   """

@@ -2,16 +2,8 @@ import os
 import cv2
 import numpy as np
 
-# img
-
-
 def ResizeImage(img):
-    """
-    Resize image to HMAX = 600 and WMAX = 2000.
-
-    Input: image data
-    Output : image data
-    """
+    """ Resize image to HMAX = 600 and WMAX = 2000. """
 
     img_shape = img.shape
     img_min = np.min(img_shape[0 : 2])
@@ -24,17 +16,12 @@ def ResizeImage(img):
 
 def GroundTruthtoTupleList(filename):
     """
-    Read an img file and its txt file and
-    turn each ground truth to tuple (x, y, h, w, theta).
-        (x, y) : geometric center of the bounding box
-        h : short side of the bounding box
-        w : long side of the bounding box
-        theta : [-pi / 4, 3 * pi / 4)
-
-    Input : filename
-
-    Output : img from cv.imread,
-             list of tuples
+    Read an img file and its txt file.
+    Turn each ground truth to tuple (x, y, h, w, theta).
+        x, y : geometric center of the bounding box
+           h : short side of the bounding box
+           w : long side of the bounding box
+       theta : [-pi / 4, 3 * pi / 4)
     """
 
     filename_img = filename
@@ -62,20 +49,14 @@ def GroundTruthtoTupleList(filename):
             if angle < -45.0 :
                 angle += 180
 
-            # t = (X_center, Y_center, h, w, angle)
-            # TODO: change the groundtruth boxes
-            t = (min(X), min(Y), max(X), max(Y), 1)
+            t = (X_center, Y_center, h, w, angle)
             l.append(t)
     return img, l
 
 def GetBlobs(dirname):
     """
-    Given a filename and return blobs of the file.
+    Given a dirname and return blobs of the files in the directory.
     'Blobs' is a dict contains imagedata, groundtruth and imageinfo.
-
-    Input : filename
-
-    Output : blobs
     """
 
     max_img_num = 20
@@ -88,7 +69,6 @@ def GetBlobs(dirname):
             continue
         img, s = ResizeImage(img)
         img = img.reshape(1, img.shape[0], img.shape[1], 3)
-        # print (img[0],img[1])
         l = [(li[0]*s, li[1]*s, li[2]*s, li[3]*s, li[4]) for li in l]
         blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])}) #img.shape[1] = h, image.shape[2] = w
         i = i + 1

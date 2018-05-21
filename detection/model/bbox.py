@@ -47,6 +47,8 @@ def bbox_transform_inv_tf(boxes, deltas):
     return tf.stack([pred_ctr_x, pred_ctr_y, pred_h, pred_w, pred_th], axis=1)
 
 def clip_boxes_tf(boxes, im_info):
+    """ Clip boxes out of the image into image. """
+
     x_center = boxes[:, 0]
     y_center = boxes[:, 1]
     h = boxes[:, 2]
@@ -71,19 +73,26 @@ def clip_boxes_tf(boxes, im_info):
     return tf.stack([x_center, y_center, h_new, w_new, angle], axis=1)
 
 def clockwise_sort(points):
+    """ Sort input points clockwise. """
+
     if len(points) == 3:
         return points
 
     l = np.argmin(points[:, 0])
+    # p_flag is one of the points at the leftmost
     p_flag = points[l]
+    # separate points above p_flag and below p_flag
     above = np.array([p for p in points if p[1] >= p_flag[1]])
     below = np.array([p for p in points if p[1] < p_flag[1]])
+    # sort 'above' and 'below' separately by x coordinate
     above = above[above[:, 0].argsort()]
     below = below[below[:, 0].argsort()[::-1]]
     points = np.concatenate((above, below))
     return points
 
 def bbox_overlaps(boxes, query_boxes):
+    """ Calculate IoU(intersection-over-union) and angle difference for each input boxes and query_boxes. """
+    
     N = boxes.shape[0]
     K = query_boxes.shape[0]
     overlaps = np.reshape(np.zeros((N, K)), (N,K))
@@ -97,6 +106,7 @@ def bbox_overlaps(boxes, query_boxes):
             rect2 = ((boxes[n][0], boxes[n][1]),
                      (boxes[n][2], boxes[n][3]),
                      boxes[n][5])
+            # can check official document of opencv for details
             num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
             S1 = query_boxes[k][2] * query_boxes[k][3]
             S2 = boxes[n][2] * boxes[n][3]
