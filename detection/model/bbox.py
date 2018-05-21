@@ -2,15 +2,15 @@ import numpy as np
 import tensorflow as tf
 
 def bbox_transform(ex_rois, gt_rois):
-    ex_widths = ex_rois[:, 2] - ex_rois[:, 0] + 1.0
-    ex_heights = ex_rois[:, 3] - ex_rois[:, 1] + 1.0
-    ex_ctr_x = ex_rois[:, 0] + 0.5 * ex_widths
-    ex_ctr_y = ex_rois[:, 1] + 0.5 * ex_heights
+    ex_widths = ex_rois[:, 3]
+    ex_heights = ex_rois[:, 2]
+    ex_ctr_x = ex_rois[:, 0]
+    ex_ctr_y = ex_rois[:, 1]
 
-    gt_widths = gt_rois[:, 2] - gt_rois[:, 0] + 1.0
-    gt_heights = gt_rois[:, 3] - gt_rois[:, 1] + 1.0
-    gt_ctr_x = gt_rois[:, 0] + 0.5 * gt_widths
-    gt_ctr_y = gt_rois[:, 1] + 0.5 * gt_heights
+    gt_widths = gt_rois[:, 3]
+    gt_heights = gt_rois[:, 2]
+    gt_ctr_x = gt_rois[:, 0]
+    gt_ctr_y = gt_rois[:, 1]
 
     targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths
     targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights
@@ -45,7 +45,6 @@ def bbox_transform_inv_tf(boxes, deltas):
 
     return tf.stack([pred_boxes0, pred_boxes1, pred_boxes2, pred_boxes3], axis=1)
 
-
 def clip_boxes_tf(boxes, im_info):
     b0 = tf.maximum(tf.minimum(boxes[:, 0], im_info[1] - 1), 0)
     b1 = tf.maximum(tf.minimum(boxes[:, 1], im_info[0] - 1), 0)
@@ -53,31 +52,41 @@ def clip_boxes_tf(boxes, im_info):
     b3 = tf.maximum(tf.minimum(boxes[:, 3], im_info[0] - 1), 0)
     return tf.stack([b0, b1, b2, b3], axis=1)
 
+def clockwise_sort(points):
+    if len(points) == 3:
+        return points
+
+    l = np.argmin(points[:, 0])
+    p_flag = points[l]
+    above = np.array([p for p in points if p[1] >= p_flag[1]])
+    below = np.array([p for p in points if p[1] < p_flag[1]])
+    above = above[above[:, 0].argsort()]
+    below = below[below[:, 0].argsort()[::-1]]
+    points = np.concatenate((above, below))
+    return points
+
 def bbox_overlaps(boxes, query_boxes):
     N = boxes.shape[0]
     K = query_boxes.shape[0]
     overlaps = np.reshape(np.zeros((N, K)), (N,K))
+    delta_theta = np.reshape(np.zeros((N, K)), (N,K))
 
     for k in range(K):
-        box_area = (
-            (query_boxes[k,2] - query_boxes[k, 0] + 1) *
-            (query_boxes[k, 3] - query_boxes[k, 1] + 1)
-        )
+        rect1 = ((query_boxes[k][0], query_boxes[k][1]),
+                 (query_boxes[k][2], query_boxes[k][3]),
+                 query_boxes[k][5])
         for n in range(N):
-            iw = (
-                min(boxes[n,2], query_boxes[k,2]) -
-                max(boxes[n,0], query_boxes[k,0]) + 1
-            )
-            if iw > 0:
-                ih = (
-                    min(boxes[n, 3], query_boxes[k, 3]) -
-                    max(boxes[n, 1], query_boxes[k, 1]) + 1
-                )
-                if ih > 0:
-                    ua = float(
-                        (boxes[n, 2] - boxes[n, 0] + 1) *
-                        (boxes[n, 3] - boxes[n, 1] + 1) +
-                        box_area - iw * ih
-                    )
-                    overlaps[n,k] = iw * ih / ua
-    return overlaps
+            rect2 = ((boxes[n][0], boxes[n][1]),
+                     (boxes[n][2], boxes[n][3]),
+                     boxes[n][5])
+            num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
+            S1 = query_boxes[k][2] * query_boxes[k][3]
+            S2 = boxes[n][2] * boxes[n][3]
+            if num_int == 1 and len(points) > 2:
+                points = clockwise_sort(points)
+                s = cv2.contourArea(points)
+                overlaps[n][k] = s / (S1 + S2 - s)
+            elif num_int == 2:
+                overlaps[n][k] = min(S1, S2) / max(S1, S2)
+            delta_theta[n][k] = np.abs(query_boxes[k][5] - boxes[n][5])
+    return overlaps, delta_theta

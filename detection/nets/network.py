@@ -23,7 +23,7 @@ class Network(object):
         self._train_summaries = []
         self._event_summaries = {}
         self._variables_to_fix = {}
-        self._num_anchors = 9
+        self._num_anchors = 9 * 6
 
     def _add_gt_image_summary(self):
         # use a customized visualization function to visualize the boxes
@@ -58,11 +58,6 @@ class Network(object):
             reshaped_score = tf.nn.softmax(bottom_reshaped, name=name)
             return tf.reshape(reshaped_score, input_shape)
         return tf.nn.softmax(bottom, name=name)
-
-        rois.set_shape([5000, 5])
-        rpn_scores.set_shape([5000, 1])
-
-        return rois, rpn_scores
 
     def _proposal_layer(self, rpn_cls_prob, rpn_bbox_pred, name):
         with tf.variable_scope(name) as scope:
@@ -112,9 +107,9 @@ class Network(object):
                 name="anchor_target")
 
         rpn_labels.set_shape([1, 1, None, None])
-        rpn_bbox_targets.set_shape([1, None, None, self._num_anchors * 4])
-        rpn_bbox_inside_weights.set_shape([1, None, None, self._num_anchors * 4])
-        rpn_bbox_outside_weights.set_shape([1, None, None, self._num_anchors * 4])
+        rpn_bbox_targets.set_shape([1, None, None, self._num_anchors * 5])
+        rpn_bbox_inside_weights.set_shape([1, None, None, self._num_anchors * 5])
+        rpn_bbox_outside_weights.set_shape([1, None, None, self._num_anchors * 5])
 
         rpn_labels = tf.to_int32(rpn_labels, name="to_int32")
         self._anchor_targets['rpn_labels'] = rpn_labels
@@ -158,7 +153,7 @@ class Network(object):
             width = tf.to_int32(tf.ceil(self._im_info[1] / np.float32(self._feat_stride[0])))
             anchors, anchor_length = generate_anchors_pre_tf(height, width)
 
-            anchors.set_shape([None, 4])
+            anchors.set_shape([None, 5])
             anchor_length.set_shape([])
             self._anchors = anchors
             self._anchor_length = anchor_length
@@ -239,7 +234,6 @@ class Network(object):
             self._losses['rpn_loss_box'] = rpn_loss_box
 
             loss = cross_entropy + loss_box + rpn_cross_entropy + rpn_loss_box
-            print('\n\tloss : ', loss)
             regularization_loss = tf.add_n(tf.losses.get_regularization_losses(), 'regu')
             self._losses['total_loss'] = loss + regularization_loss
 
@@ -259,7 +253,7 @@ class Network(object):
         rpn_cls_prob_reshape = self._softmax_layer(rpn_cls_score_reshape, "rpn_cls_prob_reshape")
         rpn_cls_pred = tf.argmax(tf.reshape(rpn_cls_score_reshape, [-1, 2]), axis=1, name="rpn_cls_pred")
         rpn_cls_prob = self._reshape_layer(rpn_cls_prob_reshape, self._num_anchors * 2, "rpn_cls_prob")
-        rpn_bbox_pred = slim.conv2d(rpn, self._num_anchors * 4, [1, 1], trainable=is_training,
+        rpn_bbox_pred = slim.conv2d(rpn, self._num_anchors * 5, [1, 1], trainable=is_training,
                                 weights_initializer=initializer,
                                 padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
         if is_training:
@@ -288,7 +282,7 @@ class Network(object):
                                         activation_fn=None, scope='cls_score')
         cls_prob = self._softmax_layer(cls_score, "cls_prob")
         cls_pred = tf.argmax(cls_score, axis=1, name="cls_pred")
-        bbox_pred = slim.fully_connected(fc7, 2 * 4,
+        bbox_pred = slim.fully_connected(fc7, 2 * 5,
                                         weights_initializer=initializer_bbox,
                                         trainable=is_training,
                                         activation_fn=None, scope='bbox_pred')
@@ -314,8 +308,7 @@ class Network(object):
         biases_regularizer = tf.no_regularizer
 
         # list as many types of layers as possible, even if they are not used now
-        with arg_scope([slim.conv2d, slim.conv2d_in_plane, \
-                    slim.conv2d_transpose, slim.separable_conv2d, slim.fully_connected],
+        with arg_scope([slim.conv2d, slim.fully_connected],
                     weights_regularizer=weights_regularizer,
                     biases_regularizer=biases_regularizer,
                     biases_initializer=tf.constant_initializer(0.0)):
