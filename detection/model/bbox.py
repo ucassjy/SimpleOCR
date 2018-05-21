@@ -46,11 +46,28 @@ def bbox_transform_inv_tf(boxes, deltas):
     return tf.stack([pred_boxes0, pred_boxes1, pred_boxes2, pred_boxes3], axis=1)
 
 def clip_boxes_tf(boxes, im_info):
-    b0 = tf.maximum(tf.minimum(boxes[:, 0], im_info[1] - 1), 0)
-    b1 = tf.maximum(tf.minimum(boxes[:, 1], im_info[0] - 1), 0)
-    b2 = tf.maximum(tf.minimum(boxes[:, 2], im_info[1] - 1), 0)
-    b3 = tf.maximum(tf.minimum(boxes[:, 3], im_info[0] - 1), 0)
-    return tf.stack([b0, b1, b2, b3], axis=1)
+    x_center = boxes[:, 0]
+    y_center = boxes[:, 1]
+    h = boxes[:, 2]
+    w = boxes[:, 3]
+    angle = boxes[:, 4]
+
+    sin_abs = tf.abs(tf.sin(angle))
+    cos_abs = tf.abs(tf.cos(angle))
+    y_top = y_center + (w * sin_abs + h * cos_abs) / 2
+    y_bot = y_center - (w * sin_abs + h * cos_abs) / 2
+    x_top = x_center + (w * cos_abs + h * sin_abs) / 2
+    x_bot = x_center - (w * cos_abs + h * sin_abs) / 2
+
+    x_bot = tf.maximum(x_bot, 0)
+    y_bot = tf.maximum(y_bot, 0)
+    x_top = tf.minimum(x_top, im_info[1] - 1)
+    y_top = tf.minimum(y_top, im_info[0] - 1)
+
+    h_new = (tf.multiply(cos_abs, y_top - y_bot) - tf.multiply(sin_abs, x_top - x_bot)) / (tf.pow(cos_abs, 2) - tf.pow(sin_abs, 2))
+    w_new = tf.multiply(w, h_new) / h
+
+    return tf.stack([x_center, y_center, h_new, w_new, angle], axis=1)
 
 def clockwise_sort(points):
     if len(points) == 3:

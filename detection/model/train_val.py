@@ -20,7 +20,7 @@ class SolverWrapper(object):
         self.pretrained_model = 'nets/vgg16.ckpt'
 
     def get_variables_in_checkpoint_file(self):
-        reader = pywrap_tensorflow.NewCheckpointReader('nets/vgg16.ckpt')
+        reader = pywrap_tensorflow.NewCheckpointReader(self.pretrained_model)
         var_to_shape_map = reader.get_variable_to_shape_map()
         return var_to_shape_map
 
@@ -97,6 +97,9 @@ class SolverWrapper(object):
                     print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
                         '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
                         (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+
+        restorer = tf.train.Saver()
+        restorer.save(sess, self.output_dir)
 
         self.writer.close()
         self.valwriter.close()
