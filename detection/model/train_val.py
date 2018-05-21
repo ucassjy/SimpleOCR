@@ -7,16 +7,11 @@ from tensorflow.python import pywrap_tensorflow
 class SolverWrapper(object):
     """ A wrapper class for the training process """
 
-    def __init__(self, sess, network, blobs_all, valblobs_all, output_dir, tbdir, pretrained_model=None):
+    def __init__(self, sess, network, blobs_all, output_dir, tbdir, pretrained_model=None):
         self.net = network
         self.blobs_all = blobs_all
-        self.valblobs_all = valblobs_all
         self.output_dir = output_dir
         self.tbdir = tbdir
-        # Simply put '_val' at the end to save the summaries from the validation set
-        self.tbvaldir = tbdir + '_val'
-        if not os.path.exists(self.tbvaldir):
-            os.makedirs(self.tbvaldir)
         self.pretrained_model = 'nets/vgg16.ckpt'
 
     def get_variables_in_checkpoint_file(self):
@@ -104,14 +99,14 @@ class SolverWrapper(object):
         self.writer.close()
         self.valwriter.close()
 
-def train_net(network, blobs_all, valblobs_all, output_dir, tb_dir, pretrained_model=None):
+def train_net(network, blobs_all, output_dir, tb_dir, pretrained_model=None):
     """Train a Faster R-CNN network."""
 
     tfconfig = tf.ConfigProto(allow_soft_placement=True)
     tfconfig.gpu_options.allow_growth = True
 
     with tf.Session(config=tfconfig) as sess:
-        sw = SolverWrapper(sess, network, blobs_all, valblobs_all, output_dir, tb_dir,
+        sw = SolverWrapper(sess, network, blobs_all, output_dir, tb_dir,
                     pretrained_model=pretrained_model)
 
         print('Solving...')
