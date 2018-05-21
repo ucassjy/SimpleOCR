@@ -2,6 +2,9 @@ import os
 import cv2
 import numpy as np
 
+# img
+
+
 def ResizeImage(img):
     """
     Resize image to HMAX = 600 and WMAX = 2000.
@@ -53,13 +56,13 @@ def GroundTruthtoTupleList(filename):
             [[X_center, Y_center], [h, w], angle] = cv2.minAreaRect(cnt)
 
             if h > w :
-#                h, w = w, h
+                h, w = w, h
                 angle += 90
 
             if angle < -45.0 :
                 angle += 180
 
-            t = (X_center, Y_center, h, w, angle)
+            # t = (X_center, Y_center, h, w, angle)
             # TODO: change the groundtruth boxes
             t = (min(X), min(Y), max(X), max(Y), 1)
             l.append(t)
@@ -75,6 +78,7 @@ def GetBlobs(dirname):
     Output : blobs
     """
 
+    max_img_num = 20
     blobs = []
 
     i = 0
@@ -83,11 +87,13 @@ def GetBlobs(dirname):
         if img is None :
             continue
         img, s = ResizeImage(img)
-        img = img.reshape(1, img.shape[0], -1, 3)
+        img = img.reshape(1, img.shape[0], img.shape[1], 3)
+        # print (img[0],img[1])
         l = [(li[0]*s, li[1]*s, li[2]*s, li[3]*s, li[4]) for li in l]
-        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])})
+        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])}) #img.shape[1] = h, image.shape[2] = w
         i = i + 1
-        if i == 20:
+
+        if i == max_img_num:
             break
 
     return blobs

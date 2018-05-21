@@ -16,13 +16,27 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     # map of shape (..., H, W)
     height, width = rpn_cls_score.shape[1:3]
 
+
+    # TODO: anchors are not horizontal, so inds_inside should be changed
     # only keep anchors inside the image
+
     inds_inside = np.where(
         (all_anchors[:, 0] >= -_allowed_border) &
         (all_anchors[:, 1] >= -_allowed_border) &
         (all_anchors[:, 2] < im_info[1] + _allowed_border) &  # width
         (all_anchors[:, 3] < im_info[0] + _allowed_border)  # height
     )[0]
+
+
+    #all_anchors(x,y,h,w,theta)
+    # inds_inside = np.where(
+    #     (all_anchors[:, 1] + (all_anchors[:, 3] * np.abs(np.sin(all_anchors[:, 4])) + all_anchors[:, 2] * np.abs(np.cos(all_anchors[:, 4]))) / 2) <= im_info[0] + _allowed_border and
+    #     (all_anchors[:, 0] + (all_anchors[:, 3] * np.abs(np.cos(all_anchors[:, 4])) + all_anchors[:, 2] * np.abs(np.sin(all_anchors[:, 4]))) / 2) <= im_info[1] + _allowed_border and
+    #     (all_anchors[:, 1] - (all_anchors[:, 3] * np.abs(np.sin(all_anchors[:, 4])) + all_anchors[:, 2] * np.abs(np.cos(all_anchors[:, 4]))) / 2) >= -_allowed_border and
+    #     (all_anchors[:, 0] - (all_anchors[:, 3] * np.abs(np.cos(all_anchors[:, 4])) + all_anchors[:, 2] * np.abs(np.sin(all_anchors[:, 4]))) / 2) >= -_allowed_border
+    # )
+
+
 
     # keep only inside anchors
     anchors = all_anchors[inds_inside, :]
@@ -33,27 +47,63 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
 
     # overlaps between the anchors and the gt boxes
     # overlaps (ex, gt)
-    print('In anchor_target_layer!!!')
-    overlaps = bbox_overlaps(
+    # print('In anchor_target_layer!!!')
+
+    #TODO: Compute IoU for rotated triangles!!
+    overlaps, delta_theta = bbox_overlaps(
         np.ascontiguousarray(anchors, dtype=np.float),
         np.ascontiguousarray(gt_boxes, dtype=np.float))
-    argmax_overlaps = overlaps.argmax(axis=1)
-    max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps]
+
+    # # print("num of anchors and gt_boxes", anchors.shape[0],gt_boxes.shape[0])
+    # argmax_overlaps = overlaps.argmax(axis=1)
+    # # Get the max overlaps among all gt_boxes for each anchor in image
+    # max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps] # len = anchors
+    # gt_argmax_overlaps = overlaps.argmax(axis=0)
+    # # Get the max overlaps among all anchors for each gt_box
+    # gt_max_overlaps = overlaps[gt_argmax_overlaps,
+    #                          np.arange(overlaps.shape[1])] # len = gt_boxes
+    # # Get the row index of gt_max_overlaps
+    # gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+    # # print("where.shape",np.where(overlaps == gt_max_overlaps).shape)
+    # # print("num of max_overlaps, gt_max_overlaps", max_overlaps.shape, gt_max_overlaps.shape)
+    # # print("length of gt_argmax_overlaps", gt_argmax_overlaps.shape)
+
+
+    # The anchors of the highest overlap with respect to certain gt_boxes
     gt_argmax_overlaps = overlaps.argmax(axis=0)
-    gt_max_overlaps = overlaps[gt_argmax_overlaps,
-                             np.arange(overlaps.shape[1])]
-    gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+    gt_max_overlaps = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])] # len = gt_boxes
+    # Truth table
+    gt_argmax_overlaps = overlaps == gt_max_overlaps
 
-    labels[max_overlaps < 0.3] = 0
+    # Truth table of anchors with IoU > 0.7
+    high_overlaps = overlaps > 0.7
 
-    # fg label: for each gt, anchor with highest overlap
-    labels[gt_argmax_overlaps] = 1
+    # Truth table of anchors with IoU < 0.3
+    low_overlaps = overlaps < 0.3
 
-    # fg label: above threshold IOU
-    labels[max_overlaps >= 0.7] = 1
+    # Positive anchors: anchors with highest IoU w.r.t a gt_box or anchors with IoU > 0.7  and delta_theta < pi/12
+    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi/12.0))[0]
 
+    # Vegative anchors:
+    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > np.pi / 12)))[0]
+
+    # Labeling the anchors
+    #
+    # # labels[max_overlaps < 0.3] = 0
+    #
+    # # fg label: for each gt, anchor with highest overlap
+    # labels[gt_argmax_overlaps] = 1
+    #
+    # # fg label: above threshold IOU
+    # labels[max_overlaps >= 0.7] = 1
+
+    labels[positive] = 1
+    labels[negative] = 0
+
+
+    print(labels.shape)
     # subsample positive labels if we have too many
-    num_fg = 128
+    num_fg = 128 # fg = foreground
     fg_inds = np.where(labels == 1)[0]
     if len(fg_inds) > num_fg:
         disable_inds = npr.choice(
@@ -61,7 +111,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
         labels[disable_inds] = -1
 
     # subsample negative labels if we have too many
-    num_bg = 256 - np.sum(labels == 1)
+    num_bg = 256 - np.sum(labels == 1) #bg = background
     bg_inds = np.where(labels == 0)[0]
     if len(bg_inds) > num_bg:
         disable_inds = npr.choice(
