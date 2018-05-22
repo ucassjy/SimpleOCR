@@ -66,8 +66,9 @@ class Network(object):
             rois, rpn_scores = proposal_layer_tf(rpn_cls_prob, rpn_bbox_pred, self._im_info,
                             self._feat_stride, self._anchors, self._num_anchors, sess)
 
-        rois.set_shape([None, 5])
+        rois.set_shape([None, 6])
         rpn_scores.set_shape([None, 1])
+        rpn_scores = tf.to_float(rpn_scores)
 
         return rois, rpn_scores
 
@@ -131,12 +132,12 @@ class Network(object):
                     [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32, tf.float32],
                     name="proposal_target")
 
-        rois.set_shape([128, 5])
-        roi_scores.set_shape([128])
-        labels.set_shape([128, 1])
-        bbox_targets.set_shape([128, 10])
-        bbox_inside_weights.set_shape([128, 10])
-        bbox_outside_weights.set_shape([128, 10])
+        rois.set_shape([256, 6])
+        roi_scores.set_shape([256])
+        labels.set_shape([256, 1])
+        bbox_targets.set_shape([256, 5 * 2])
+        bbox_inside_weights.set_shape([256, 5 * 2])
+        bbox_outside_weights.set_shape([256, 5 * 2])
 
         self._proposal_targets['rois'] = rois
         self._proposal_targets['labels'] = tf.to_int32(labels, name="to_int32")
@@ -155,6 +156,7 @@ class Network(object):
             width = tf.to_int32(tf.ceil(self._im_info[1] / np.float32(self._feat_stride[0])))
             print ('height.shape',height.shape)
             anchors, anchor_length = generate_anchors_pre_tf(height, width)
+
             print ('anchors.shape',anchors.shape)
             anchors.set_shape([None, 5])
             anchor_length.set_shape([])
@@ -191,8 +193,11 @@ class Network(object):
         in_box_diff = bbox_inside_weights * box_diff
         abs_in_box_diff = tf.abs(in_box_diff)
         smoothL1_sign = tf.stop_gradient(tf.to_float(tf.less(abs_in_box_diff, 1. / sigma_2)))
+        # print(smoothL1_sign.shape, in_box_diff.shape)
         in_loss_box = tf.pow(in_box_diff, 2) * (sigma_2 / 2.) * smoothL1_sign \
                     + (abs_in_box_diff - (0.5 / sigma_2)) * (1. - smoothL1_sign)
+
+        print('bbox_outside_weight',bbox_outside_weights.shape,'in_loss_box', in_loss_box.shape)
         out_loss_box = bbox_outside_weights * in_loss_box
         loss_box = tf.reduce_mean(tf.reduce_sum(
                     out_loss_box,
@@ -200,7 +205,7 @@ class Network(object):
                     ))
         return loss_box
 
-    def _add_losses(self, sigma_rpn=3.0):
+    def _add_losses(self, sigma_rpn=1.0):
         with tf.variable_scope('LOSS_') as scope:
             # RPN, class loss
             rpn_cls_score = tf.reshape(self._predictions['rpn_cls_score_reshape'], [-1, 2])
@@ -218,7 +223,7 @@ class Network(object):
             rpn_bbox_outside_weights = self._anchor_targets['rpn_bbox_outside_weights']
             rpn_loss_box = self._smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
                                             rpn_bbox_outside_weights, sigma=sigma_rpn, dim=[1, 2, 3])
-
+            print ("RPN loss computed\n\n\n\n")
             # RCNN, class loss
             cls_score = self._predictions["cls_score"]
             label = tf.reshape(self._proposal_targets["labels"], [-1])
@@ -230,6 +235,7 @@ class Network(object):
             bbox_inside_weights = self._proposal_targets['bbox_inside_weights']
             bbox_outside_weights = self._proposal_targets['bbox_outside_weights']
             loss_box = self._smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
+            print ("RCNN loss computed\n\n\n\n")
 
             self._losses['cross_entropy'] = cross_entropy
             self._losses['loss_box'] = loss_box
@@ -288,11 +294,11 @@ class Network(object):
                                         activation_fn=None, scope='cls_score')
         cls_prob = self._softmax_layer(cls_score, "cls_prob")
         cls_pred = tf.argmax(cls_score, axis=1, name="cls_pred")
-        bbox_pred = slim.fully_connected(fc7, 2 * 5,
+        bbox_pred = slim.fully_connected(fc7, 5 * 2,
                                         weights_initializer=initializer_bbox,
                                         trainable=is_training,
                                         activation_fn=None, scope='bbox_pred')
-
+        print ('bbox_pred.shape',bbox_pred.shape)
         self._predictions["cls_score"] = cls_score
         self._predictions["cls_pred"] = cls_pred
         self._predictions["cls_prob"] = cls_prob

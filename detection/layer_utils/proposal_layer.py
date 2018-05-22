@@ -16,8 +16,9 @@ def rotate_cpu_nms(dets, scores, threshold):
 	----------------
 	keep: keep the remaining index of dets
 	'''
-	keep = []
+	max_size = 1000
 	# scores = dets[:, -1]
+	keep = []
 
 	tic = time.time()
 
@@ -28,15 +29,14 @@ def rotate_cpu_nms(dets, scores, threshold):
 	suppressed = np.zeros((ndets), dtype = np.int)
 
 
-
-	for _i in range(ndets):
+	for _i in range(max_size):
 		i = order[_i]
 		if suppressed[i] == 1:
 			continue
 		keep.append(i)
 		r1 = ((dets[i,0],dets[i,1]),(dets[i,3],dets[i,2]),dets[i,4])
 		area_r1 = dets[i,2]*dets[i,3]
-		for _j in range(_i+1,ndets):
+		for _j in range(_i+1,max_size):
 			#tic = time.time()
 			j = order[_j]
 			if suppressed[j] == 1:
@@ -53,7 +53,6 @@ def rotate_cpu_nms(dets, scores, threshold):
 
 			n, int_pts = cv2.rotatedRectangleIntersection(r1, r2)
 			if  n == 1:
-				# print("1111")
 				order_pts = cv2.convexHull(int_pts, returnPoints = True)
 				#t2 = time.time()
 				int_area = cv2.contourArea(order_pts)
@@ -66,7 +65,7 @@ def rotate_cpu_nms(dets, scores, threshold):
 			#print
 	print (time.time() - tic)
 	print ("nms done")
-	return keep
+	return np.array(keep, dtype=np.int32)
 
 
 def proposal_layer_tf(rpn_cls_prob, rpn_bbox_pred, im_info, _feat_stride, anchors, num_anchors, sess):
@@ -85,35 +84,41 @@ def proposal_layer_tf(rpn_cls_prob, rpn_bbox_pred, im_info, _feat_stride, anchor
 
     # Non-maximal suppression
     # indices = tf.image.non_max_suppression(proposals, scores, max_output_size=2000, iou_threshold=0.7)
-	indices = tf.py_func(rotate_cpu_nms,[proposals, scores, 0.7],tf.int32,stateful=False,name=None)
+	threshold = 0.5
+	indices = tf.py_func(rotate_cpu_nms,[proposals, scores, threshold],tf.int32,stateful=False,name=None)
 	# indices = tf.convert_to_tensor(indices)
 
 	boxes = tf.gather(proposals, indices)
 	boxes = tf.to_float(boxes)
 	scores = tf.gather(scores, indices)
 	scores = tf.reshape(scores, shape=(-1, 1))
+	scores = tf.to_float(scores)
 
 	# Only support single image as input
 	batch_inds = tf.zeros((tf.shape(indices)[0], 1), dtype=tf.float32)
 	blob = tf.concat([batch_inds, boxes], 1)
+
+	print('blobs.len',blob.shape[0])
+	print('scores.len',scores.shape[0])
 
 	return blob, scores
 
 if __name__ == "__main__":
 
 	boxes = np.array([
-			[50, 50, 100, 100, 0,0.99],
-			[60, 60, 100, 100, 0,0.88],#keep 0.68
-			[50, 50, 100, 100, 45.0,0.66],#discard 0.70
-			[200, 200, 100, 100, 0,0.77],#keep 0.0
+			[50, 50, 100, 100, 0],
+			[60, 60, 100, 100, 0],#keep 0.68
+			[50, 50, 100, 100, 45.0],#discard 0.70
+			[200, 200, 100, 100, 0],#keep 0.0
 
 		])
+	scores = np.array([0.99, 0.88, 0.66, 0.77])
 
 	#boxes = np.tile(boxes, (4500 / 4, 1))
 
 	#for ind in range(4500):
 	#	boxes[ind, 5] = 0
 
-	a = rotate_cpu_nms(boxes, 0.7)
+	a = rotate_cpu_nms(boxes, scores, 0.7)
 
 	print (boxes[a])

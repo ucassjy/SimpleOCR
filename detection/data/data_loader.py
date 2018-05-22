@@ -40,14 +40,16 @@ def GroundTruthtoTupleList(filename):
             Y = [position[1], position[3], position[5], position[7]]
 
             cnt = np.array([[X[0], Y[0]], [X[1], Y[1]], [X[2], Y[2]], [X[3], Y[3]]])
-            [[X_center, Y_center], [h, w], angle] = cv2.minAreaRect(cnt)
+            [[X_center, Y_center], [w, h], angle] = cv2.minAreaRect(cnt)
+
+            angle = abs(angle)
 
             if h > w :
                 h, w = w, h
-                angle += 90
+                angle += 90.0
 
-            if angle < -45.0 :
-                angle += 180
+            if angle > 135.0:
+                angle -= 180.0
 
             t = (X_center, Y_center, h, w, angle)
             l.append(t)
@@ -59,7 +61,7 @@ def GetBlobs(dirname):
     'Blobs' is a dict contains imagedata, groundtruth and imageinfo.
     """
 
-    max_img_num = 20
+    max_img_num = 3
     blobs = []
 
     i = 0
@@ -70,7 +72,7 @@ def GetBlobs(dirname):
         img, s = ResizeImage(img)
         img = img.reshape(1, img.shape[0], img.shape[1], 3)
         l = [(li[0]*s, li[1]*s, li[2]*s, li[3]*s, li[4]) for li in l]
-        blobs.append({'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])}) #img.shape[1] = h, image.shape[2] = w
+        blobs.append({'name':filename, 'data': img, 'gt_list': l, 'im_info': np.array([img.shape[1], img.shape[2], s])}) #img.shape[1] = h, image.shape[2] = w
         i = i + 1
 
         if i == max_img_num:
@@ -80,6 +82,6 @@ def GetBlobs(dirname):
 
 if __name__ == "__main__":
     blobs = GetBlobs('../../image_1000/')
-    print(blobs[0])
-    cv2.imshow('img', blobs[0]['data'])
-    cv2.waitKey(0)
+    print(blobs)
+    # cv2.imshow('img', blobs[0]['data'])
+    # cv2.waitKey(0)

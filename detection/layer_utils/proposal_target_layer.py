@@ -15,7 +15,7 @@ def proposal_target_layer(rpn_rois, rpn_scores, gt_boxes):
     all_scores = rpn_scores
 
     num_images = 1
-    rois_per_image = 128 / num_images
+    rois_per_image = 256 / num_images
     fg_rois_per_image = np.round(0.25 * rois_per_image)
 
     # Sample rois with classification labels and bounding box regression
@@ -24,19 +24,23 @@ def proposal_target_layer(rpn_rois, rpn_scores, gt_boxes):
         all_rois, all_scores, gt_boxes, fg_rois_per_image,
         rois_per_image)
 
-    rois = rois.reshape(-1, 5)
+    rois = rois.reshape(-1, 6)
     roi_scores = roi_scores.reshape(-1)
+
+    roi_scores = np.array(roi_scores,dtype=np.float32)
+
     labels = labels.reshape(-1, 1)
-    bbox_targets = bbox_targets.reshape(-1, 2 * 5)
-    bbox_inside_weights = bbox_inside_weights.reshape(-1, 2 * 5)
+    bbox_targets = bbox_targets.reshape(-1, 5 * 2)
+    bbox_inside_weights = bbox_inside_weights.reshape(-1, 5 * 2)
     bbox_outside_weights = np.array(bbox_inside_weights > 0).astype(np.float32)
+    print ('shape bbox_targets, bbox_inside_weights, bbox_outside_weights', bbox_targets.shape, bbox_inside_weights.shape, bbox_outside_weights.shape)
 
     return rois, roi_scores, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
 
 
 def _get_bbox_regression_labels(bbox_target_data):
     """Bounding-box regression targets (bbox_target_data) are stored in a
-    compact form N x (class, tx, ty, tw, th)
+    compact form N x (class, tx, ty, th, tw, ta)
 
     This function expands those targets into the 4-of-4*K representation used
     by the network (i.e. only one class has non-zero targets).
@@ -63,6 +67,7 @@ def _compute_targets(ex_rois, gt_rois, labels):
     """Compute bounding-box regression targets for an image."""
 
     targets = bbox_transform(ex_rois, gt_rois)
+    # print('targets : ', targets)
 
     return np.hstack(
             (labels[:, np.newaxis], targets)).astype(np.float32, copy=False)
@@ -73,19 +78,44 @@ def _sample_rois(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_ima
     examples.
     """
     # overlaps: (rois x gt_boxes)
-    overlaps = bbox_overlaps(
-        np.ascontiguousarray(all_rois[:, 1:5], dtype=np.float),
-        np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float))
+    print('In proposal_target_layer!!!')
+
+    overlaps, delta_theta = bbox_overlaps(
+        np.ascontiguousarray(all_rois[:, 1:6], dtype=np.float),
+        np.ascontiguousarray(gt_boxes[:, :5], dtype=np.float))
+    # print ('overlaps' , overlaps.shape)
+    print ('overlaps.max', np.max(overlaps))
     gt_assignment = overlaps.argmax(axis=1)
     max_overlaps = overlaps.max(axis=1)
-    labels = gt_boxes[gt_assignment, 4]
+    gt_argmax_overlaps = overlaps.argmax(axis=0)
+    gt_max_overlaps = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])]
+    gt_argmax_overlaps = overlaps == gt_max_overlaps
 
+    high_overlaps = overlaps > 0.5
+    low_overlaps = overlaps < 0.3
+    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < 15.0))[0]
+    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > 15.0)))[0]
+
+    # print ('max_overlaps', max_overlaps, max_overlaps.shape)
+    # np.set_printoptions(threshold=np.inf)
+    # print('rois : ', all_rois[:, 1:6])
+    # print('max_overlaps : ', max_overlaps)
+    # print('gt : ', gt_boxes[:, :5])
+    labels = np.ones(max_overlaps.shape[0], dtype=np.float32)
+    print ('labels shape:' , labels.shape)
     # Select foreground RoIs as those with >= FG_THRESH overlap
-    fg_inds = np.where(max_overlaps >= 0.5)[0]
+    # fg_inds = np.where(max_overlaps >= 0.5)[0]
+    fg_inds = positive
+
+
     # Guard against the case when an image has fewer than fg_rois_per_image
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
-    bg_inds = np.where((max_overlaps < 0.5) &
-                        (max_overlaps >= 0.1))[0]
+    # bg_inds = np.where((max_overlaps < 0.5) &
+    #                     (max_overlaps >= 0.1))[0]
+    bg_inds = negative
+
+
+    print ('num_fg', fg_inds, 'num_bg', bg_inds)
 
     # Small modification to the original version where we ensure a fixed number of regions are sampled
     if fg_inds.size > 0 and bg_inds.size > 0:
@@ -111,9 +141,9 @@ def _sample_rois(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_ima
     labels[int(fg_rois_per_image):] = 0
     rois = all_rois[keep_inds]
     roi_scores = all_scores[keep_inds]
-
+    print ('roi_size',rois.shape, 'all_rois_size', all_rois.shape)
     bbox_target_data = _compute_targets(
-        rois[:, 1:5], gt_boxes[gt_assignment[keep_inds], :4], labels)
+        rois[:, 1:6], gt_boxes[gt_assignment[keep_inds], :5], labels)
 
     bbox_targets, bbox_inside_weights = \
         _get_bbox_regression_labels(bbox_target_data)

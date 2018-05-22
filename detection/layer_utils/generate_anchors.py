@@ -7,10 +7,10 @@ def _ratio_scales(ratios, scales):
 
     ss = np.repeat(scales, 3)
     rs = np.tile(ratios, 3)
-    size_ratios = ss / rs
+    size_ratios = ss * rs
 
     hs = np.sqrt(size_ratios)
-    ws = hs * rs
+    ws = hs / rs
     hs = np.array([[np.array(h)] for h in hs])
     ws = np.array([[np.array(w)] for w in ws])
 
@@ -28,8 +28,8 @@ def generate_anchors(height, width):
     ratios = [0.125, 0.2, 0.5]
     scales = [256*8, 256*16, 256*32]
     angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
-    xs = np.arange(height)
-    ys = np.arange(width)
+    xs = np.arange(height) * 16
+    ys = np.arange(width) * 16
 
     xys = np.transpose([np.tile(xs, ys.shape[0]), np.repeat(ys, xs.shape[0])])
 
@@ -42,8 +42,9 @@ def generate_anchors(height, width):
     return np.array(anchors, dtype=np.float32)
 
 if __name__ == '__main__':
+    np.set_printoptions(threshold=np.inf)
     import time
     t = time.time()
-    a = generate_anchors()
+    a = generate_anchors(3,5)
     print(time.time() - t)
-    print(a, len(a))
+    print(a, a.shape[0])
