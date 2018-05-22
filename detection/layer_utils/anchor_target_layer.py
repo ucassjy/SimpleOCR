@@ -54,10 +54,10 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
         np.ascontiguousarray(anchors, dtype=np.float),
         np.ascontiguousarray(gt_boxes, dtype=np.float))
 
-    # # print("num of anchors and gt_boxes", anchors.shape[0],gt_boxes.shape[0])
-    # argmax_overlaps = overlaps.argmax(axis=1)
-    # # Get the max overlaps among all gt_boxes for each anchor in image
-    # max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps] # len = anchors
+    # print("num of anchors and gt_boxes", anchors.shape[0],gt_boxes.shape[0])
+    argmax_overlaps = overlaps.argmax(axis=1)
+    # Get the max overlaps among all gt_boxes for each anchor in image
+    max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps] # len = anchors
     # gt_argmax_overlaps = overlaps.argmax(axis=0)
     # # Get the max overlaps among all anchors for each gt_box
     # gt_max_overlaps = overlaps[gt_argmax_overlaps,
@@ -82,7 +82,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     low_overlaps = overlaps < 0.3
 
     # Positive anchors: anchors with highest IoU w.r.t a gt_box or anchors with IoU > 0.7  and delta_theta < pi/12
-    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi/12.0))[0]
+    positive = np.where(np.logicalt_boxe_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi/12.0))[0]
 
     # Vegative anchors:
     negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > np.pi / 12)))[0]
@@ -118,18 +118,18 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
             bg_inds, size=(len(bg_inds) - num_bg), replace=False)
         labels[disable_inds] = -1
 
-    bbox_targets = np.zeros((len(inds_inside), 4), dtype=np.float32)
-    bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :][:, :4]).astype(np.float32, copy=False)
+    bbox_targets = np.zeros((len(inds_inside), 5), dtype=np.float32)
+    bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :][:, :5]).astype(np.float32, copy=False)
 
-    bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    bbox_inside_weights = np.zeros((len(inds_inside), 5), dtype=np.float32)
     # only the positive ones have regression targets
-    bbox_inside_weights[labels == 1, :] = np.array((1.0, 1.0, 1.0, 1.0))
+    bbox_inside_weights[labels == 1, :] = np.array((1.0, 1.0, 1.0, 1.0, 1.0))
 
-    bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
+    bbox_outside_weights = np.zeros((len(inds_inside), 5), dtype=np.float32)
     # uniform weighting of examples (given non-uniform sampling)
     num_examples = np.sum(labels >= 0)
-    positive_weights = np.ones((1, 4)) * 1.0 / num_examples
-    negative_weights = np.ones((1, 4)) * 1.0 / num_examples
+    positive_weights = np.ones((1, 5)) * 1.0 / num_examples
+    negative_weights = np.ones((1, 5)) * 1.0 / num_examples
     bbox_outside_weights[labels == 1, :] = positive_weights
     bbox_outside_weights[labels == 0, :] = negative_weights
 
@@ -145,16 +145,16 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     rpn_labels = labels
 
     # bbox_targets
-    bbox_targets = bbox_targets.reshape((1, height, width, A * 4))
+    bbox_targets = bbox_targets.reshape((1, height, width, A * 5))
 
     rpn_bbox_targets = bbox_targets
     # bbox_inside_weights
-    bbox_inside_weights = bbox_inside_weights.reshape((1, height, width, A * 4))
+    bbox_inside_weights = bbox_inside_weights.reshape((1, height, width, A * 5))
 
     rpn_bbox_inside_weights = bbox_inside_weights
 
     # bbox_outside_weights
-    bbox_outside_weights = bbox_outside_weights.reshape((1, height, width, A * 4))
+    bbox_outside_weights = bbox_outside_weights.reshape((1, height, width, A * 5))
 
     rpn_bbox_outside_weights = bbox_outside_weights
     return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
