@@ -10,6 +10,7 @@ from utils import sparse_tuple_from, resize_image, label_to_array, ground_truth_
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 class CRNN(object):
     def __init__(self, batch_size, model_path, examples_picture_path, examples_label_path, dictionary_path, max_image_width, train_test_ratio, restore,NUM_CLASSES):
@@ -20,7 +21,7 @@ class CRNN(object):
         self.__restore = restore
 
         self.__training_name = str(int(time.time()))
-        self.__session = tf.Session()
+        self.__session = tf.Session(config=tf.ConfigProto(log_device_placement=True))
 
 
         # Building graph
@@ -170,17 +171,19 @@ class CRNN(object):
 
         # Loss and cost calculation
         loss = tf.nn.ctc_loss(targets, logits, seq_len)
-
-        cost = tf.reduce_mean(loss)
+        with tf.name_scope('cost'):
+        
+            cost = tf.reduce_mean(loss)
+            tf.summary.scalar('cost',cost)
 
         point4 = time.time()
         # Training step
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(cost)
 
         point5 = time.time()
         # The decoded answer
-        decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len)
-
+     #   decoded, log_prob = tf.nn.ctc_beam_search_decoder(logits, seq_len)
+        decoded, log_prob = tf.nn.ctc_greedy_decoder(logits, seq_len)
         point6 =time.time()
 
         dense_decoded = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
@@ -199,16 +202,22 @@ class CRNN(object):
         return inputs, targets, seq_len, logits, dense_decoded, optimizer, acc, cost, max_char_count, init
 
     def train(self, iteration_count):
+        tensorboard_dir = 'tensorboard/dir'
+        merged  =tf.summary.merge_all()
+        if not os.path.exists(tensorboard_dir):
+            os.makedirs(tensorboard_dir)
+        writer = tf.summary.FileWriter(tensorboard_dir)
+
         dictionary, inverse_dictionary, dictionary_len = read_dictionary(self.__data_manager.dictionary_path)
         with self.__session.as_default():
             print('Training')
             
             for i in range(self.step, iteration_count + self.step):
                 iter_loss = 0
-
+                rs = 0
                 for batch_y, batch_dt, batch_x in self.__data_manager.train_batches:
-                    op, decoded, loss_value = self.__session.run(
-                        [self.__optimizer, self.__decoded, self.__cost],
+                    op, loss_value,rs = self.__session.run(
+                        [self.__optimizer, self.__cost, merged],
                         feed_dict={
                             self.__inputs: batch_x,
                             self.__seq_len: [self.__max_char_count] * self.__data_manager.batch_size,
@@ -216,13 +225,21 @@ class CRNN(object):
                         }
                     )
 
-                    if i % 10 == 0:
+                    if i % 20 == 0:
                         for j in range(2):
+                            decoded = self.__session.run(self.__decoded, feed_dict={
+                                self.__inputs:batch_x,
+                                self.__seq_len:[self.__max_char_count] * self.__data_manager.batch_size,
+                                self.__targets:batch_dt
+                            }
+                            )
                             print(batch_y[j])
                             print(ground_truth_to_word(decoded[j],inverse_dictionary))
 
                     iter_loss += loss_value
-                if i % 100 == 0:
+                    rs += rs
+                writer.add_summary(rs,i)
+                if i % 500 == 0:
                     self.__saver.save(
                         self.__session,
                         self.__save_path,
