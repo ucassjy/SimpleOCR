@@ -27,8 +27,8 @@ def proposal_target_layer(rpn_rois, rpn_scores, gt_boxes):
     rois = rois.reshape(-1, 5)
     roi_scores = roi_scores.reshape(-1)
     labels = labels.reshape(-1, 1)
-    bbox_targets = bbox_targets.reshape(-1, 2 * 4)
-    bbox_inside_weights = bbox_inside_weights.reshape(-1, 2 * 4)
+    bbox_targets = bbox_targets.reshape(-1, 2 * 5)
+    bbox_inside_weights = bbox_inside_weights.reshape(-1, 2 * 5)
     bbox_outside_weights = np.array(bbox_inside_weights > 0).astype(np.float32)
 
     return rois, roi_scores, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
@@ -47,15 +47,15 @@ def _get_bbox_regression_labels(bbox_target_data):
     """
 
     clss = bbox_target_data[:, 0]
-    bbox_targets = np.zeros((clss.size, 4 * 2), dtype=np.float32)
+    bbox_targets = np.zeros((clss.size, 5 * 2), dtype=np.float32)
     bbox_inside_weights = np.zeros(bbox_targets.shape, dtype=np.float32)
     inds = np.where(clss > 0)[0]
     for ind in inds:
         cls = clss[ind]
-        start = int(4 * cls)
-        end = start + 4
+        start = int(5 * cls)
+        end = start + 5
         bbox_targets[ind, start:end] = bbox_target_data[ind, 1:]
-        bbox_inside_weights[ind, start:end] = (1.0, 1.0, 1.0, 1.0)
+        bbox_inside_weights[ind, start:end] = (1.0, 1.0, 1.0, 1.0, 1.0)
     return bbox_targets, bbox_inside_weights
 
 

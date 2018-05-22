@@ -32,10 +32,9 @@ def generate_anchors():
     hws = _ratio_scales(ratios, scales)
     angles = np.array([[np.array(a)] for a in angles])
 
-    anchors = [np.concatenate(((0, 0), hws[j], angles[k])) for j in range(len(hws))]
-                                                         for k in range(6)]
-
-    return anchors
+    anchors = [np.concatenate(((0, 0), hws[j], angles[k])) for j in range(len(hws))
+                                                           for k in range(6)]
+    return np.array(anchors)
 
 if __name__ == '__main__':
     import time
