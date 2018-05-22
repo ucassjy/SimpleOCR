@@ -1,9 +1,3 @@
-# --------------------------------------------------------
-# Tensorflow Faster R-CNN
-# Licensed under The MIT License [see LICENSE for details]
-# Written by Zheqi He, Xinlei Chen, based on code from Ross Girshick
-# --------------------------------------------------------
-
 import os
 import sys
 import tensorflow as tf
@@ -34,17 +28,17 @@ def main():
             os.makedirs(tb_dir)
         print('TensorFlow summaries will be saved to `{:s}`'.format(tb_dir))
 
-        # also add the validation set
-        valblobs_all = GetBlobs('../image_1000/')
-        print('{:d} validation roidb entries'.format(len(valblobs_all)))
-
         # load network
         net = vgg16()
 
-        train_net(net, blobs_all, valblobs_all, output_dir, tb_dir)
+        train_net(net, blobs_all, output_dir, tb_dir)
 
     else :
-        print('For test')
+        pre_trained = 'output/models/'
+        if os.file.exists(pre_trained):
+            print('For test.')
+        else:
+            print('No pre_trained model yet.')
 
 if __name__ == '__main__':
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'

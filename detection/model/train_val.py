@@ -104,7 +104,6 @@ def train_net(network, blobs_all, output_dir, tb_dir, pretrained_model=None):
     tfconfig.gpu_options.allow_growth = True
 
     with tf.Session(config=tfconfig) as sess:
-        # print (sess)
         sw = SolverWrapper(sess, network, blobs_all, output_dir, tb_dir,
                     pretrained_model=pretrained_model)
 

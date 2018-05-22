@@ -14,14 +14,17 @@ def bbox_transform(ex_rois, gt_rois):
     gt_ctr_y = gt_rois[:, 1]
     gt_angle = gt_rois[:, 4]
 
-    targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths / np.abs(np.sin(ex_rois[:, 4]))
-    targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights / np.abs(np.cos(ex_rois[:, 4]))
+    targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths
+    targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights
     targets_dw = np.log(gt_widths / ex_widths)
     targets_dh = np.log(gt_heights / ex_heights)
-    targets_dth = np.log(gt_angle / ex_angle)
+    targets_da = gt_angle - ex_angle
+
+    targets_da[np.where(targets_da < -30)] += 180
+    targets_da[np.where(targets_da >= 120)] -= 180
 
     targets = np.vstack(
-        (targets_dx, targets_dy, targets_dw, targets_dh, targets_dth)).transpose()
+        (targets_dx, targets_dy, targets_dw, targets_dh, targets_da)).transpose()
     return targets
 
 def bbox_transform_inv_tf(boxes, deltas):
@@ -36,15 +39,20 @@ def bbox_transform_inv_tf(boxes, deltas):
     dy = deltas[:, 1]
     dh = deltas[:, 2]
     dw = deltas[:, 3]
-    dth = deltas[:, 4]
+    da = deltas[:, 4]
 
     pred_ctr_x = tf.add(tf.multiply(dx, widths), ctr_x)
     pred_ctr_y = tf.add(tf.multiply(dy, heights), ctr_y)
     pred_w = tf.multiply(tf.exp(dw), widths)
     pred_h = tf.multiply(tf.exp(dh), heights)
-    pred_th = tf.multiply(tf.exp(dth), angle)
+    pred_a = tf.add(angle, da)
 
-    return tf.stack([pred_ctr_x, pred_ctr_y, pred_h, pred_w, pred_th], axis=1)
+    a_up = tf.add(pred_a, 180)
+    a_down = tf.subtract(pred_a, 180)
+    pred_a = tf.where(pred_a >= 135, (pred_a, a_up))
+    pred_a = tf.where(pred_a < 45, (pred_a, a_down))
+
+    return tf.stack([pred_ctr_x, pred_ctr_y, pred_h, pred_w, pred_a], axis=1)
 
 def clip_boxes_tf(boxes, im_info):
     """ Clip boxes out of the image into image. """
@@ -92,7 +100,7 @@ def clockwise_sort(points):
 
 def bbox_overlaps(boxes, query_boxes):
     """ Calculate IoU(intersection-over-union) and angle difference for each input boxes and query_boxes. """
-    
+
     N = boxes.shape[0]
     K = query_boxes.shape[0]
     overlaps = np.reshape(np.zeros((N, K)), (N,K))

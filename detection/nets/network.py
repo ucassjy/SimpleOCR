@@ -59,9 +59,7 @@ class Network(object):
             return tf.reshape(reshaped_score, input_shape)
         return tf.nn.softmax(bottom, name=name)
 
-    def _proposal_layer(self, rpn_cls_prob, rpn_bbox_pred, name, sess):
-        print('sess in _proposal_layer',sess)
-        print ('prob_shape=',rpn_cls_prob.shape)
+    def _proposal_layer(self, rpn_cls_prob, rpn_bbox_pred, name):
         with tf.variable_scope(name) as scope:
             rois, rpn_scores = proposal_layer_tf(rpn_cls_prob, rpn_bbox_pred, self._im_info,
                             self._feat_stride, self._anchors, self._num_anchors, sess)
@@ -256,7 +254,6 @@ class Network(object):
         rpn_cls_prob_reshape = self._softmax_layer(rpn_cls_score_reshape, "rpn_cls_prob_reshape")
         rpn_cls_pred = tf.argmax(tf.reshape(rpn_cls_score_reshape, [-1, 2]), axis=1, name="rpn_cls_pred")
         rpn_cls_prob = self._reshape_layer(rpn_cls_prob_reshape, self._num_anchors * 2, "rpn_cls_prob")
-
         rpn_bbox_pred = slim.conv2d(rpn, self._num_anchors * 5, [1, 1], trainable=is_training,
                                 weights_initializer=initializer,
                                 padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
