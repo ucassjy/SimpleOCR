@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import cv2
 
 def bbox_transform(ex_rois, gt_rois):
     ex_widths = ex_rois[:, 3]
@@ -41,16 +42,23 @@ def bbox_transform_inv_tf(boxes, deltas):
     dw = deltas[:, 3]
     da = deltas[:, 4]
 
+
+    print ('angles.shape',angle.shape)
+    print ('da.shape',da.shape)
     pred_ctr_x = tf.add(tf.multiply(dx, widths), ctr_x)
     pred_ctr_y = tf.add(tf.multiply(dy, heights), ctr_y)
     pred_w = tf.multiply(tf.exp(dw), widths)
     pred_h = tf.multiply(tf.exp(dh), heights)
     pred_a = tf.add(angle, da)
 
+	# for i in range(int(pred_a.shape[0])):
+	# 	for j in range(int(pred_a.shape[1]))
+	# pred_a
     a_up = tf.add(pred_a, 180)
+    print("pred_a,a_up",pred_a,a_up)
     a_down = tf.subtract(pred_a, 180)
-    pred_a = tf.where(pred_a >= 135, (pred_a, a_up))
-    pred_a = tf.where(pred_a < 45, (pred_a, a_down))
+    pred_a = tf.where(pred_a >= 135, pred_a, a_down)
+    pred_a = tf.where(pred_a < -45, pred_a, a_up)
 
     return tf.stack([pred_ctr_x, pred_ctr_y, pred_h, pred_w, pred_a], axis=1)
 
@@ -107,13 +115,14 @@ def bbox_overlaps(boxes, query_boxes):
     delta_theta = np.reshape(np.zeros((N, K)), (N,K))
 
     for k in range(K):
+        # print (k)
         rect1 = ((query_boxes[k][0], query_boxes[k][1]),
                  (query_boxes[k][2], query_boxes[k][3]),
-                 query_boxes[k][5])
+                 query_boxes[k][4])
         for n in range(N):
             rect2 = ((boxes[n][0], boxes[n][1]),
                      (boxes[n][2], boxes[n][3]),
-                     boxes[n][5])
+                     boxes[n][4])
             # can check official document of opencv for details
             num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
             S1 = query_boxes[k][2] * query_boxes[k][3]
@@ -124,5 +133,5 @@ def bbox_overlaps(boxes, query_boxes):
                 overlaps[n][k] = s / (S1 + S2 - s)
             elif num_int == 2:
                 overlaps[n][k] = min(S1, S2) / max(S1, S2)
-            delta_theta[n][k] = np.abs(query_boxes[k][5] - boxes[n][5])
+            delta_theta[n][k] = np.abs(query_boxes[k][4] - boxes[n][4])
     return overlaps, delta_theta

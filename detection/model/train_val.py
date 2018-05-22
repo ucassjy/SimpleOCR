@@ -36,13 +36,12 @@ class SolverWrapper(object):
             self.saver = tf.train.Saver(max_to_keep=10000)
             # Write the train and validation information to tensorboard
             self.writer = tf.summary.FileWriter(self.tbdir, sess.graph)
-            self.valwriter = tf.summary.FileWriter(self.tbvaldir)
 
         return lr, train_op
 
     def initialize(self, sess):
         # Fresh train directly from ImageNet weights
-        print('Loading initial model weights from %s'.format(self.pretrained_model))
+        print('Loading initial model weights from %s' % format(self.pretrained_model))
         variables = tf.global_variables()
         # Initialize all variables first
         sess.run(tf.variables_initializer(variables, name='init'))
@@ -95,7 +94,6 @@ class SolverWrapper(object):
         restorer.save(sess, self.output_dir)
 
         self.writer.close()
-        self.valwriter.close()
 
 def train_net(network, blobs_all, output_dir, tb_dir, pretrained_model=None):
     """Train a Faster R-CNN network."""

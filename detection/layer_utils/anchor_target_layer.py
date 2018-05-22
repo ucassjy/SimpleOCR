@@ -48,7 +48,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     # overlaps between the anchors and the gt boxes
     # overlaps (ex, gt)
     # print('In anchor_target_layer!!!')
-
+    print (np.ascontiguousarray(gt_boxes, dtype=np.float).shape)
     #TODO: Compute IoU for rotated triangles!!
     overlaps, delta_theta = bbox_overlaps(
         np.ascontiguousarray(anchors, dtype=np.float),

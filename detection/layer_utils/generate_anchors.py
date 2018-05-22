@@ -17,7 +17,7 @@ def _ratio_scales(ratios, scales):
     hws = np.concatenate((hs, ws), axis=1)
     return hws
 
-def generate_anchors():
+def generate_anchors(height, width):
     """
     Generate anchor windows by enumerating aspect ratios, scales and angles.
 
@@ -28,13 +28,18 @@ def generate_anchors():
     ratios = [0.125, 0.2, 0.5]
     scales = [256*8, 256*16, 256*32]
     angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
+    xs = np.arange(height)
+    ys = np.arange(width)
+
+    xys = np.transpose([np.tile(xs, ys.shape[0]), np.repeat(ys, xs.shape[0])])
 
     hws = _ratio_scales(ratios, scales)
     angles = np.array([[np.array(a)] for a in angles])
 
-    anchors = [np.concatenate(((0, 0), hws[j], angles[k])) for j in range(len(hws))
+    anchors = [np.concatenate((xys[i], hws[j], angles[k])) for i in range(len(xys))
+														   for j in range(len(hws))
                                                            for k in range(6)]
-    return np.array(anchors)
+    return np.array(anchors, dtype=np.float32)
 
 if __name__ == '__main__':
     import time
