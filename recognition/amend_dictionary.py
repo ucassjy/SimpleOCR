@@ -4,27 +4,28 @@ from dictionary import give_dictionary
 #NOTE: DESIGN FOR TRAINING DATA
 
 def amend_dictionary():
-    dictionary = give_dictionary()
-
+#    dictionary = give_dictionary()
+    dictionary = {}
     MAX_CHARACTER = 50
 
     with open("target_label.txt",'r') as f:
         label = f.readlines()#[0:Num]
         for line in label:
-            filename = line.split(',')[0]
-            content = list(line.split(',')[1])
+            filename = line.split('__')[0]
+            content = list(line.split('__')[1])
             if content[0] == "#":
                 continue
             for element in range(len(content)):
 
 
                 if content[element] not in dictionary.keys() and element != len(content) -1:
-                    dictionary[content[element]] = len(dictionary)
+                    dictionary[content[element]] = len(dictionary) + 1
+                #    print((dictionary))
 
             #        print(len(dictionary))
         with open("dictionary.txt",'w') as ff:
             new_dictionary = {v:k for k,v in dictionary.items()}
-            for i in range(1,len(new_dictionary)+1):
+            for i in range(1,len(new_dictionary) + 1):
             #    print(len(new_dictionary))
             #    print(new_dictionary[i])
                 ff.write(new_dictionary[i] + ':' + str(i) + '\n')

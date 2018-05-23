@@ -32,11 +32,7 @@ def give_label():
                 if content[element] == '\n':
                     content.remove('\n')
                     break
-                # if content[element] == "0":
-                #     content[element] = "\ufeff0"        #FUUUUUUUUUUCK! FUCKFUCKFUCKFUCKFUCKFUCKFUCK
-                # if element==len(content)-1:
-                #     content[element] = []
-                # else:
+
 
                 content[element] = int(real_dict[content[element]])
             # rest = MAX_CHARACTER - len(content)

@@ -6,9 +6,9 @@ import cv2
 
 step = 0
 MAX = 0
-Threshold = 50
-MAX_LENGTH = 15 * Threshold
-ff = open("/home/h/a/hanlins/Desktop/OCR/target_label.txt",'w')
+Threshold = 32
+MAX_LENGTH = 256
+ff = open("target_label.txt",'w')
 
 for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image_1000/'):
 #for i in range(1):
@@ -19,11 +19,11 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
     if img is None:
         continue
 
-    #img = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 20)
-    ret,img = cv2.threshold(img, 127,255,cv2.THRESH_TOZERO)
+    img = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 20)
+    #ret,img = cv2.threshold(img, 127,255,cv2.THRESH_TOZERO)
     step += 1
     print(step)
-    if (step > 1000):
+    if (step > 2):
 
         exit()
 
@@ -76,7 +76,7 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
 
                 rewrite_name = "rewrite/" + filename_suf + "_" + str(Num) + ".jpg" #"/home/h/a/hanlins/Desktop/OCR/rewrite/" + filename_suf + "_" + str(Num) + ".jpg"
                 cv2.imwrite(rewrite_name,crop_img)
-                ff.write(rewrite_name + ',' + label)
+                ff.write(rewrite_name + '__' + label)
                 Num += 1
 
             else:
@@ -98,13 +98,18 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
                 x_s = Threshold
                 if crop_img.shape[0]==0:
                     continue
-                y_s = int((crop_img.shape[1]/crop_img.shape[0]) * Threshold)
+                # y_s = int((crop_img.shape[1]/crop_img.shape[0]) * Threshold)
+                y_s = int(MAX_LENGTH)
                 crop_img = cv2.resize(crop_img,(y_s, x_s))
-                rest = MAX_LENGTH - crop_img.shape[1]
-                if rest < 0:
-                    rest = 0
-                stack = np.ones([Threshold, rest]) * 255
-                crop_img = np.hstack((crop_img, stack))
+                print(crop_img.shape)
+                # plt.imshow(crop_img)
+                # plt.show()
+                # exit()
+                # rest = MAX_LENGTH - crop_img.shape[1]
+                # if rest < 0:
+                #     rest = 0
+                # stack = np.ones([Threshold, rest]) * 255
+                # crop_img = np.hstack((crop_img, stack))
 
                 # if (X_start < 0):
                 #     M = np.float32([[1,0,-X_start],[0,1,0]])
@@ -144,7 +149,7 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
                 # print(MAX)
                 rewrite_name = "rewrite/" + filename_suf + "_" + str(Num) + ".jpg" #"/home/h/a/hanlins/Desktop/OCR/rewrite/" + filename_suf + "_" + str(Num) + ".jpg"
                 cv2.imwrite(rewrite_name,crop_img)
-                ff.write(rewrite_name + ',' + label)
+                ff.write(rewrite_name + '__' + label)
                 Num += 1
 
 ff.close()
