@@ -51,13 +51,13 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
 
     # Positive anchors: anchors with highest IoU w.r.t a gt_box or anchors with IoU > 0.7  and delta_theta < pi/12
     positive_case1 = gt_argmax_overlaps
-    positive_case2 = np.where(np.logical_and(high_overlaps,delta_theta < 15.0))[0]
+    positive_case2 = np.where(np.logical_and(high_overlaps,delta_theta < np.pi / 12.0))[0]
 
-    # positive = np.where(np.logical_and(high_overlaps,delta_theta < 15.0))[0]
+    # positive = np.where(np.logical_and(high_overlaps,delta_theta < np.pi / 12.0))[0]
 
     # Negative anchors:
     negative_case1 = max_overlaps < 0.3
-    negative_case2 = np.where(np.logical_and(high_overlaps, delta_theta > 15.0))[0]
+    negative_case2 = np.where(np.logical_and(high_overlaps, delta_theta > np.pi / 12.0))[0]
 
     # Labeling the anchors
 

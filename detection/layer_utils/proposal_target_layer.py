@@ -86,8 +86,8 @@ def _sample_rois(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_ima
 
     high_overlaps = overlaps > 0.5
     low_overlaps = overlaps < 0.3
-    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < 15.0))[0]
-    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > 15.0)))[0]
+    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi / 12.0))[0]
+    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > np.pi / 12.0)))[0]
 
     labels = np.ones(max_overlaps.shape[0], dtype=np.float32)
     # Select foreground RoIs as those with >= FG_THRESH overlap
