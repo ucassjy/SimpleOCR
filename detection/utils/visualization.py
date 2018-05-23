@@ -63,11 +63,10 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
     # gt_boxes_new = np.round(gt_boxes_new.copy())
     # gt_boxes_new[:,:4] *= im_info[2]
     disp_image = Image.fromarray(np.uint8(image[0]))
-    print ('scale=%4.2f' % im_info[2])
     for i in range(num_boxes):
         this_class = 1
         [x,y,h,w,theta] = gt_boxes_new[i,:]
-        
+
         if DEBUG:
             # [[x,y],[h,w],theta] = gt_boxes[i,:]
             box_points = np.int0(cv2.boxPoints(([x,y],[h,w],theta)))
@@ -75,7 +74,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
             bottom = (box_points[1][0],box_points[1][1])
             right  = (box_points[2][0],box_points[2][1])
             top    = (box_points[3][0],box_points[3][1])
-            
+
         else:
             cos_abs = np.abs(np.cos(theta))
             sin_abs = np.abs(np.sin(theta))
@@ -114,7 +113,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
     return image
 
 if __name__ == '__main__':
-    blobs = GetBlobs('../../image_1000/')
+    blobs = GetBlobs('../../../image_1000/')
     for i in range(len(blobs)):
         print (np.array(blobs[i]['gt_list']).shape)
         image = draw_bounding_boxes(blobs[i]['data'], np.array(blobs[i]['gt_list']), blobs[i]['im_info'])
@@ -124,4 +123,3 @@ if __name__ == '__main__':
         plt.imshow(image[0])
         # plt.show()
         plt.savefig('gt[%d].png' % (int(i+1)))
-

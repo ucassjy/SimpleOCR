@@ -16,7 +16,7 @@ def rotate_cpu_nms(dets, scores, threshold):
 	----------------
 	keep: keep the remaining index of dets
 	'''
-	max_size = 5000
+	max_size = 4000
 	keep = []
 
 	dets = np.round(dets, decimals=2)

@@ -21,19 +21,20 @@ class SolverWrapper(object):
 
     def construct_graph(self, sess):
         with sess.graph.as_default():
+            tf.set_random_seed(17)
             # Build the main computation graph
             layers = self.net.create_architecture('TRAIN')
             # Define the loss
             loss = layers['total_loss']
             # Set learning rate and momentum
-            lr = tf.Variable(0.001, trainable=False)
+            lr = tf.Variable(0.0001, trainable=False)
             self.optimizer = tf.train.MomentumOptimizer(lr, 0.9)
 
             # Compute the gradients with regard to the loss
             gvs = self.optimizer.compute_gradients(loss)
             train_op = self.optimizer.apply_gradients(gvs)
 
-            self.saver = tf.train.Saver(max_to_keep=10000)
+            self.saver = tf.train.Saver(max_to_keep=5000)
             # Write the train and validation information to tensorboard
             self.writer = tf.summary.FileWriter(self.tbdir, sess.graph)
 
@@ -56,7 +57,7 @@ class SolverWrapper(object):
         # change the convolutional weights fc6 and fc7 to fully connected weights
         self.net.fix_variables(sess, self.pretrained_model)
         print('Fixed.')
-        rate = 0.001
+        rate = 0.0001
 
         return rate
 
@@ -88,7 +89,7 @@ class SolverWrapper(object):
             # Display training information
             print('\titer: %d / %d, total loss: %.6f\n\t >>> rpn_loss_cls: %.6f\n\t '
                     '>>> rpn_loss_box: %.6f\n\t >>> loss_cls: %.6f\n\t >>> loss_box: %.6f\n\t >>> lr: %f' % \
-                    (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
+                    (i+1, 200, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
 
         restorer = tf.train.Saver()
         restorer.save(sess, self.output_dir)
