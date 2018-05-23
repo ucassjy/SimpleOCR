@@ -43,16 +43,16 @@ def _draw_single_box(image, left, bottom, right, top, display_str, font, color='
     # (left, right, top, bottom) = (xmin, xmax, ymin, ymax)
     draw.line([left, bottom, right,
                 top, left], width=thickness, fill=color)
-    text_bottom = bottom[1]
+    # text_bottom = bottom[1]
     # Reverse list and print from bottom to top.
-    text_width, text_height = font.getsize(display_str)
-    margin = np.ceil(0.05 * text_height)
-    draw.rectangle(
-        [(left[0], text_bottom - text_height - 2 * margin), (left[0] + text_width, text_bottom)],
-        fill=color)
-    draw.text(
-        (left[0] + margin, text_bottom - text_height - margin),
-        display_str, fill='black', font=font)
+    # text_width, text_height = font.getsize(display_str)
+    # margin = np.ceil(0.05 * text_height)
+    # draw.rectangle(
+        # [(left[0], text_bottom - text_height - 2 * margin), (left[0] + text_width, text_bottom)],
+        # fill=color)
+    # draw.text(
+        # (left[0] + margin, text_bottom - text_height - margin),
+        # display_str, fill='black', font=font)
 
     return image
 
@@ -71,18 +71,16 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
         x_max = x + (h * sin_abs + w * cos_abs) / 2.0
         y_min = y - (w * sin_abs + h * cos_abs) / 2.0
         y_max = y + (w * sin_abs + h * cos_abs) / 2.0
-        _y_min = im_info[0] - y_max
-        _y_max = im_info[0] - y_min
         if theta < 0 or theta > 90:
-            left   = (x_min, _y_max - w * sin_abs)
-            bottom = (x_min + w * cos_abs, _y_max)
-            right  = (x_max, _y_max - h * cos_abs)
-            top    = (x_min + h * sin_abs, _y_min)
+            left   = (x_min, y_min + w * sin_abs)
+            bottom = (x_min + w * cos_abs, y_min)
+            right  = (x_max, y_min + h * cos_abs)
+            top    = (x_min + h * sin_abs, y_max)
         else:
-            left   = (x_min, _y_max - h * cos_abs)
-            bottom = (x_min + h * sin_abs, _y_max)
-            right  = (x_max, _y_max - w * sin_abs)
-            top    = (x_min + w * cos_abs, _y_min)            
+            left   = (x_min, y_min + h * cos_abs)
+            bottom = (x_min + h * sin_abs, y_min)
+            right  = (x_max, y_min + w * sin_abs)
+            top    = (x_min + w * cos_abs, y_max)            
 
         disp_image = _draw_single_box(disp_image,
                                            left,
