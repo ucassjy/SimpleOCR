@@ -54,7 +54,7 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     # print('gt : ', gt_boxes)
 
     # print("num of anchors and gt_boxes", anchors.shape[0],gt_boxes.shape[0])
-    argmax_overlaps = overlaps.argmax(axis=1)
+    argmax_overlaps = overlaps.argmax(axis=1) # in range(num_gt_boxes)
     # Get the max overlaps among all gt_boxes for each anchor in image
     max_overlaps = overlaps[np.arange(len(inds_inside)), argmax_overlaps] # len = anchors
     # gt_argmax_overlaps = overlaps.argmax(axis=0)
@@ -73,46 +73,57 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     gt_max_overlaps = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])] # len = gt_boxes
     print ('len_gt', gt_max_overlaps.shape[0])
     # Truth table
-    gt_argmax_overlaps = overlaps == gt_max_overlaps
+    gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
+
+    # assert(gt_argmax_overlaps.shape[0]!=max_overlaps.shape[0])
     print ('shape gt_argmax_overlaps', gt_argmax_overlaps.shape)
 
     # Truth table of anchors with IoU > 0.7
     high_overlaps = overlaps > 0.7
 
-    # Truth table of anchors with IoU < 0.3
-    low_overlaps = overlaps < 0.3
 
     # assert(np.logical_and(high_overlaps,low_overlaps).any())
 
     # Positive anchors: anchors with highest IoU w.r.t a gt_box or anchors with IoU > 0.7  and delta_theta < pi/12
-    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < 15.0))[0]
+    positive_case1 = gt_argmax_overlaps
+    print (positive_case1.shape)
+    positive_case2 = np.where(np.logical_and(high_overlaps,delta_theta < 15.0))[0]
+    print (positive_case2.shape)
+
+    # positive = np.where(np.logical_and(high_overlaps,delta_theta < 15.0))[0]
 
     # Negative anchors:
-    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > 15.0)))[0]
+    negative_case1 = max_overlaps < 0.3
+    print (negative_case1.shape)
+    negative_case2 = np.where(np.logical_and(high_overlaps, delta_theta > 15.0))[0]
+    print (negative_case2.shape)
 
     # for i in positive:
     #     if i in negative:
+    #         assert(-1)
     #         print('gt, hiover, delta=', gt_argmax_overlaps[i], high_overlaps[i], delta_theta[i])
 
-    print('positive : ', positive, 'negative : ', negative)
+    # print('positive : ', positive, 'negative : ', negative)
 
     # Labeling the anchors
     #
-    # # labels[max_overlaps < 0.3] = 0
+    # labels[max_overlaps < 0.3] = 0
     #
-    # # fg label: for each gt, anchor with highest overlap
+    # fg label: for each gt, anchor with highest overlap
     # labels[gt_argmax_overlaps] = 1
     #
     # # fg label: above threshold IOU
     # labels[max_overlaps >= 0.7] = 1
 
-    labels[negative] = 0
-    labels[positive] = 1
+    labels[negative_case1] = 0
+    labels[negative_case2] = 0
+    labels[positive_case1] = 1
+    labels[positive_case2] = 1
 
-    print (np.where(labels==1))
-    print (np.where(labels==0))
-    print('labels pos',np.where(labels==1)[0].shape[0])
-    print('labels neg',np.where(labels==0)[0].shape[0])
+    # print (np.where(labels==1))
+    # print (np.where(labels==0))
+    # print('labels pos',np.where(labels==1)[0].shape[0])
+    # print('labels neg',np.where(labels==0)[0].shape[0])
     # subsample positive labels if we have too many
     num_fg = 128 # fg = foreground
     fg_inds = np.where(labels == 1)[0]
@@ -129,8 +140,12 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
             bg_inds, size=(len(bg_inds) - num_bg), replace=False)
         labels[disable_inds] = -1
 
+    # print ('gt_boxes shape', gt_boxes.shape)
+    # print ('gt_boxes[argmax_overlaps, :].shape',gt_boxes[argmax_overlaps, :].shape)
+    # print ('gt_boxes[argmax_overlaps, :][:, :5].shape',gt_boxes[argmax_overlaps, :].shape)
+
     bbox_targets = np.zeros((len(inds_inside), 5), dtype=np.float32)
-    bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :][:, :5]).astype(np.float32, copy=False)
+    bbox_targets = bbox_transform(anchors, gt_boxes[argmax_overlaps, :]).astype(np.float32, copy=False)
 
     bbox_inside_weights = np.zeros((len(inds_inside), 5), dtype=np.float32)
     # only the positive ones have regression targets
@@ -140,8 +155,8 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride, all_anch
     bbox_outside_weights = np.zeros((len(inds_inside), 5), dtype=np.float32)
     # uniform weighting of examples (given non-uniform sampling)
     num_examples = np.sum(labels >= 0)
-    positive_weights = np.ones((1, 5)) * 1.0 / num_examples
-    negative_weights = np.ones((1, 5)) * 1.0 / num_examples
+    positive_weights =  np.ones((1, 5)) * 1.0 / num_examples
+    negative_weights = np.zeros((1, 5)) * 1.0 / num_examples
     bbox_outside_weights[labels == 1, :] = positive_weights
     bbox_outside_weights[labels == 0, :] = negative_weights
 
