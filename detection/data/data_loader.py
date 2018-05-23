@@ -61,7 +61,7 @@ def GetBlobs(dirname):
     'Blobs' is a dict contains imagedata, groundtruth and imageinfo.
     """
 
-    max_img_num = 3
+    max_img_num = 10
     blobs = []
 
     i = 0

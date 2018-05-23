@@ -1,16 +1,9 @@
-import sys
-sys.path.append("..")
 import numpy as np
-import matplotlib.pyplot as plt
 from six.moves import range
 import PIL.Image as Image
 import PIL.ImageColor as ImageColor
 import PIL.ImageDraw as ImageDraw
 import PIL.ImageFont as ImageFont
-import cv2
-import os
-
-from data.data_loader import ResizeImage, GroundTruthtoTupleList, GetBlobs
 
 STANDARD_COLORS = [
     'AliceBlue', 'Chartreuse', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque',
@@ -78,7 +71,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
         x_max = x + (h * sin_abs + w * cos_abs) / 2.0
         y_min = y - (w * sin_abs + h * cos_abs) / 2.0
         y_max = y + (w * sin_abs + h * cos_abs) / 2.0
-        if theta > 0 and theta < 90:
+        if theta < 0 or theta > 90:
             left   = (x_min, y_min + w * sin_abs)
             bottom = (x_min + w * cos_abs, y_min)
             right  = (x_max, y_min + h * cos_abs)
@@ -99,16 +92,4 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
                                 color=STANDARD_COLORS[this_class % NUM_COLORS])
 
     image[0, :] = np.array(disp_image)
-    print (image.shape)
     return image
-
-if __name__ == '__main__':
-    blobs = GetBlobs('../../image_1000/')
-    for i in range(len(blobs)):
-        image = draw_bounding_boxes(blobs[i]['data'], np.array(blobs[i]['gt_list']), blobs[i]['im_info'])
-        # image.show()
-        plt.figure('ground truth')
-        plt.axis('off')
-        plt.imshow(image[0])
-        # plt.show()
-        plt.savefig('gt[%d].png' % (int(i+1)))

@@ -64,11 +64,11 @@ class SolverWrapper(object):
         # Construct the computation graph
         lr, train_op = self.construct_graph(sess)
 
-        for i in range(10):
+        for i in range(200):
             if i == 0:
                 rate = self.initialize(sess)
             # Learning rate
-            if i == 8:
+            if i == 150:
                 rate *= 0.1
                 sess.run(tf.assign(lr, rate))
             for j in range(len(self.blobs_all)):
@@ -86,8 +86,8 @@ class SolverWrapper(object):
                         self.net.train_step(sess, blobs, train_op)
 
             # Display training information
-            print('iter: %d / %d, total loss: %.6f\n >>> rpn_loss_cls: %.6f\n '
-                    '>>> rpn_loss_box: %.6f\n >>> loss_cls: %.6f\n >>> loss_box: %.6f\n >>> lr: %f' % \
+            print('\titer: %d / %d, total loss: %.6f\n\t >>> rpn_loss_cls: %.6f\n\t '
+                    '>>> rpn_loss_box: %.6f\n\t >>> loss_cls: %.6f\n\t >>> loss_box: %.6f\n\t >>> lr: %f' % \
                     (i, 10, total_loss, rpn_loss_cls, rpn_loss_box, loss_cls, loss_box, lr.eval()))
 
         restorer = tf.train.Saver()
