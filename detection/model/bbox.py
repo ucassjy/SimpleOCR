@@ -101,7 +101,11 @@ def bbox_overlaps(boxes, query_boxes):
                      (boxes[n][2], boxes[n][3]),
                      boxes[n][4])
             # can check official document of opencv for details
-            num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
+            try:
+                num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
+            except :
+                num_int = 0
+                overlaps[n][k] = 0.9
             S1 = query_boxes[k][2] * query_boxes[k][3]
             S2 = boxes[n][2] * boxes[n][3]
             if num_int == 1 and len(points) > 2:

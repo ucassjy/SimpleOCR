@@ -1,16 +1,9 @@
-import sys
-sys.path.append("..")
 import numpy as np
-import matplotlib.pyplot as plt
 from six.moves import range
 import PIL.Image as Image
 import PIL.ImageColor as ImageColor
 import PIL.ImageDraw as ImageDraw
 import PIL.ImageFont as ImageFont
-import cv2
-import os
-
-from data.data_loader import ResizeImage, GroundTruthtoTupleList, GetBlobs
 
 STANDARD_COLORS = [
     'AliceBlue', 'Chartreuse', 'Aqua', 'Aquamarine', 'Azure', 'Beige', 'Bisque',
@@ -74,6 +67,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
     for i in range(num_boxes):
         this_class = 1
         [x,y,h,w,theta] = gt_boxes_new[i,:]
+        
         if DEBUG:
             # [[x,y],[h,w],theta] = gt_boxes[i,:]
             box_points = np.int0(cv2.boxPoints(([x,y],[h,w],theta)))
@@ -81,6 +75,7 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
             bottom = (box_points[1][0],box_points[1][1])
             right  = (box_points[2][0],box_points[2][1])
             top    = (box_points[3][0],box_points[3][1])
+            
         else:
             cos_abs = np.abs(np.cos(theta))
             sin_abs = np.abs(np.sin(theta))
@@ -116,7 +111,6 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
                                 color=STANDARD_COLORS[this_class % NUM_COLORS])
 
     image[0, :] = np.array(disp_image)
-    print (image.shape)
     return image
 
 if __name__ == '__main__':
@@ -130,3 +124,4 @@ if __name__ == '__main__':
         plt.imshow(image[0])
         # plt.show()
         plt.savefig('gt[%d].png' % (int(i+1)))
+
