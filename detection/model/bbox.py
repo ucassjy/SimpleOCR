@@ -21,12 +21,16 @@ def bbox_transform(ex_rois, gt_rois):
     # print('gt_heights:', gt_heights)
     targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths
     targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights
+    tf.Assert(tf.reduce_min(gt_widths)>0, [gt_widths])
+    tf.Assert(tf.reduce_min(gt_heights)>0, [gt_heights])
+    tf.Assert(tf.reduce_min(ex_widths)>0, [ex_widths])
+    tf.Assert(tf.reduce_min(ex_heights)>0, [ex_heights])
     targets_dw = np.log(gt_widths / ex_widths)
     targets_dh = np.log(gt_heights / ex_heights)
     targets_da = gt_angle - ex_angle
 
-    targets_da[np.where(targets_da < -30)] += 180
-    targets_da[np.where(targets_da >= 120)] -= 180
+    targets_da[np.where(targets_da < -45)] += 180
+    targets_da[np.where(targets_da >= 135)] -= 180
 
     targets = np.vstack(
         (targets_dx, targets_dy, targets_dw, targets_dh, targets_da)).transpose()
