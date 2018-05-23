@@ -27,7 +27,7 @@ def generate_anchors(height, width):
 
     ratios = [0.125, 0.2, 0.5]
     scales = [256*8, 256*16, 256*32]
-    angles = [-30.0, 0.0, 30.0, 60.0, 90.0, 120.0]
+    angles = [-np.pi / 6, 0, np.pi / 6, np.pi / 3, np.pi / 2, np.pi * (2/3.0)]
     xs = np.arange(height) * 16
     ys = np.arange(width) * 16
 

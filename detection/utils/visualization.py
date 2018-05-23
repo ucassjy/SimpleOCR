@@ -32,6 +32,7 @@ STANDARD_COLORS = [
 ]
 
 NUM_COLORS = len(STANDARD_COLORS)
+DEBUG = False
 
 try:
   FONT = ImageFont.truetype('arial.ttf', 24)
@@ -59,28 +60,46 @@ def _draw_single_box(image, left, bottom, right, top, display_str, font, color='
 def draw_bounding_boxes(image, gt_boxes, im_info):
     num_boxes = gt_boxes.shape[0]
     gt_boxes_new = gt_boxes.copy()
-    gt_boxes_new[:,:5] = np.round(gt_boxes_new[:,:5].copy() * im_info[2])
+    # gt_boxes_new = np.round(gt_boxes_new.copy())
+    # gt_boxes_new[:,:4] *= im_info[2]
     disp_image = Image.fromarray(np.uint8(image[0]))
-
+    print ('scale=%4.2f' % im_info[2])
     for i in range(num_boxes):
         this_class = 1
-        [x,y,h,w,theta] = gt_boxes[i,:]
-        cos_abs = np.abs(np.cos(theta))
-        sin_abs = np.abs(np.sin(theta))
-        x_min = x - (h * sin_abs + w * cos_abs) / 2.0
-        x_max = x + (h * sin_abs + w * cos_abs) / 2.0
-        y_min = y - (w * sin_abs + h * cos_abs) / 2.0
-        y_max = y + (w * sin_abs + h * cos_abs) / 2.0
-        if theta < 0 or theta > 90:
-            left   = (x_min, y_min + w * sin_abs)
-            bottom = (x_min + w * cos_abs, y_min)
-            right  = (x_max, y_min + h * cos_abs)
-            top    = (x_min + h * sin_abs, y_max)
+        [x,y,h,w,theta] = gt_boxes_new[i,:]
+        
+        if DEBUG:
+            # [[x,y],[h,w],theta] = gt_boxes[i,:]
+            box_points = np.int0(cv2.boxPoints(([x,y],[h,w],theta)))
+            left   = (box_points[0][0],box_points[0][1])
+            bottom = (box_points[1][0],box_points[1][1])
+            right  = (box_points[2][0],box_points[2][1])
+            top    = (box_points[3][0],box_points[3][1])
+            
         else:
-            left   = (x_min, y_min + h * cos_abs)
-            bottom = (x_min + h * sin_abs, y_min)
-            right  = (x_max, y_min + w * sin_abs)
-            top    = (x_min + w * cos_abs, y_max)            
+            cos_abs = np.abs(np.cos(theta))
+            sin_abs = np.abs(np.sin(theta))
+            x_min = x - (h * sin_abs + w * cos_abs) / 2.0
+            x_max = x + (h * sin_abs + w * cos_abs) / 2.0
+            y_min = y - (w * sin_abs + h * cos_abs) / 2.0
+            y_max = y + (w * sin_abs + h * cos_abs) / 2.0
+            if DEBUG:
+                left   = (x_min, y_min)
+                bottom = (x_min, y_max)
+                right  = (x_max, y_max)
+                top    = (x_max, y_min)
+            else:
+                if theta > 0 and theta <= 90:
+                    left   = (x_min, y_min + w * sin_abs)
+                    bottom = (x_min + w * cos_abs, y_min)
+                    right  = (x_max, y_min + h * cos_abs)
+                    top    = (x_min + h * sin_abs, y_max)
+                else:
+                    left   = (x_min, y_min + h * cos_abs)
+                    bottom = (x_min + h * sin_abs, y_min)
+                    right  = (x_max, y_min + w * sin_abs)
+                    top    = (x_min + w * cos_abs, y_max)
+
 
         disp_image = _draw_single_box(disp_image,
                                            left,
@@ -93,3 +112,16 @@ def draw_bounding_boxes(image, gt_boxes, im_info):
 
     image[0, :] = np.array(disp_image)
     return image
+
+if __name__ == '__main__':
+    blobs = GetBlobs('../../image_1000/')
+    for i in range(len(blobs)):
+        print (np.array(blobs[i]['gt_list']).shape)
+        image = draw_bounding_boxes(blobs[i]['data'], np.array(blobs[i]['gt_list']), blobs[i]['im_info'])
+        # image.show()
+        plt.figure('ground truth')
+        plt.axis('off')
+        plt.imshow(image[0])
+        # plt.show()
+        plt.savefig('gt[%d].png' % (int(i+1)))
+

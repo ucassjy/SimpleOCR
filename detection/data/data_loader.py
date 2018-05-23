@@ -2,6 +2,8 @@ import os
 import cv2
 import numpy as np
 
+DEBUG = False
+
 def ResizeImage(img):
     """ Resize image to HMAX = 600 and WMAX = 2000. """
 
@@ -10,7 +12,7 @@ def ResizeImage(img):
     img_max = np.max(img_shape[0 : 2])
     img_scale = np.array([600, 2000]) / np.array([img_min, img_max])
     img_scale = np.min(img_scale)
-
+    # print ('In resize, scale=%f' % img_scale)
     img = cv2.resize(img, None, fx=img_scale, fy=img_scale)
     return img, img_scale
 
@@ -33,6 +35,10 @@ def GroundTruthtoTupleList(filename):
 
     with open(filename_txt, 'r') as f:
         data = f.readlines()
+        if DEBUG:
+            h_big = 0
+            w_big = 0
+
         for line in data :
             position = line.split(",")[0 : 8]
             position = [int(float(position[i])) for i in range(8)]
@@ -42,17 +48,30 @@ def GroundTruthtoTupleList(filename):
             cnt = np.array([[X[0], Y[0]], [X[1], Y[1]], [X[2], Y[2]], [X[3], Y[3]]])
             [[X_center, Y_center], [w, h], angle] = cv2.minAreaRect(cnt)
 
+            original_angle = angle
             angle = abs(angle)
-
             if h > w :
+                # temp = h
+                # h = w
+                # w = temp
                 h, w = w, h
                 angle += 90.0
 
             if angle > 135.0:
                 angle -= 180.0
 
+            angle *= np.pi / 180.0
             t = (X_center, Y_center, h, w, angle)
             l.append(t)
+
+            if DEBUG:
+                print ('[h,w,x,y] = [%5.2f,%5.2f,%5.2f,%5.2f], o_angle = %f, angle = %f' % (h,w,X_center,Y_center,original_angle,angle))
+                if h > w:
+                    h_big += 1
+                else:
+                    w_big += 1
+                print (line)
+    # print ('h_big=%d, w_big=%d' % (h_big,w_big))
     return img, l
 
 def GetBlobs(dirname):
