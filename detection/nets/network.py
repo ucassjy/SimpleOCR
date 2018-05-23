@@ -61,10 +61,10 @@ class Network(object):
             return tf.reshape(reshaped_score, input_shape)
         return tf.nn.softmax(bottom, name=name)
 
-    def _proposal_layer(self, rpn_cls_prob, rpn_bbox_pred, name, sess):
+    def _proposal_layer(self, rpn_cls_prob, rpn_bbox_pred, name):
         with tf.variable_scope(name) as scope:
             rois, rpn_scores = proposal_layer_tf(rpn_cls_prob, rpn_bbox_pred, self._im_info,
-                            self._feat_stride, self._anchors, self._num_anchors, sess)
+                            self._feat_stride, self._anchors, self._num_anchors)
 
         rois.set_shape([None, 6])
         rpn_scores.set_shape([None, 1])
@@ -154,16 +154,14 @@ class Network(object):
             # just to get the shape right
             height = tf.to_int32(tf.ceil(self._im_info[0] / np.float32(self._feat_stride[0])))
             width = tf.to_int32(tf.ceil(self._im_info[1] / np.float32(self._feat_stride[0])))
-            print ('height.shape',height.shape)
             anchors, anchor_length = generate_anchors_pre_tf(height, width)
 
-            print ('anchors.shape',anchors.shape)
             anchors.set_shape([None, 5])
             anchor_length.set_shape([])
             self._anchors = anchors
             self._anchor_length = anchor_length
 
-    def _build_network(self, sess, is_training=True):
+    def _build_network(self, is_training=True):
         # set initializers
         initializer = tf.random_normal_initializer(mean=0.0, stddev=0.01)
         initializer_bbox = tf.random_normal_initializer(mean=0.0, stddev=0.001)
@@ -173,7 +171,7 @@ class Network(object):
             # build the anchors for the image
             self._anchor_component()
             # region proposal network
-            rois = self._region_proposal(net_conv, is_training, initializer, sess)
+            rois = self._region_proposal(net_conv, is_training, initializer)
             # region of interest pooling
             pool5 = self._crop_pool_layer(net_conv, rois, "pool5")
 
@@ -193,11 +191,9 @@ class Network(object):
         in_box_diff = bbox_inside_weights * box_diff
         abs_in_box_diff = tf.abs(in_box_diff)
         smoothL1_sign = tf.stop_gradient(tf.to_float(tf.less(abs_in_box_diff, 1. / sigma_2)))
-        # print(smoothL1_sign.shape, in_box_diff.shape)
         in_loss_box = tf.pow(in_box_diff, 2) * (sigma_2 / 2.) * smoothL1_sign \
                     + (abs_in_box_diff - (0.5 / sigma_2)) * (1. - smoothL1_sign)
 
-        print('bbox_outside_weight',bbox_outside_weights.shape,'in_loss_box', in_loss_box.shape)
         out_loss_box = bbox_outside_weights * in_loss_box
         loss_box = tf.reduce_mean(tf.reduce_sum(
                     out_loss_box,
@@ -223,7 +219,6 @@ class Network(object):
             rpn_bbox_outside_weights = self._anchor_targets['rpn_bbox_outside_weights']
             rpn_loss_box = self._smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
                                             rpn_bbox_outside_weights, sigma=sigma_rpn, dim=[1, 2, 3])
-            print ("RPN loss computed\n\n\n\n")
             # RCNN, class loss
             cls_score = self._predictions["cls_score"]
             label = tf.reshape(self._proposal_targets["labels"], [-1])
@@ -235,7 +230,6 @@ class Network(object):
             bbox_inside_weights = self._proposal_targets['bbox_inside_weights']
             bbox_outside_weights = self._proposal_targets['bbox_outside_weights']
             loss_box = self._smooth_l1_loss(bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights)
-            print ("RCNN loss computed\n\n\n\n")
 
             self._losses['cross_entropy'] = cross_entropy
             self._losses['loss_box'] = loss_box
@@ -250,8 +244,7 @@ class Network(object):
 
         return loss
 
-    def _region_proposal(self, net_conv, is_training, initializer, sess):
-        print ('sess in region_proposal:', sess)
+    def _region_proposal(self, net_conv, is_training, initializer):
         rpn = slim.conv2d(net_conv, 512, [3, 3], trainable=is_training, weights_initializer=initializer,
                             scope="rpn_conv/3x3")
         self._act_summaries.append(rpn)
@@ -266,17 +259,14 @@ class Network(object):
         rpn_bbox_pred = slim.conv2d(rpn, self._num_anchors * 5, [1, 1], trainable=is_training,
                                 weights_initializer=initializer,
                                 padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
-        print ('rpn_cls_prob.shape',rpn_cls_prob.shape)
-        print ('rpn_bbox_pred.shape',rpn_bbox_pred.shape)
         if is_training:
-            rois, roi_scores = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois", sess)
-            print('In network, rois after _proposal_layer : ', rois)
+            rois, roi_scores = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois")
             rpn_labels = self._anchor_target_layer(rpn_cls_score, "anchor")
             # Try to have a deterministic order for the computing graph, for reproducibility
             with tf.control_dependencies([rpn_labels]):
                 rois, _ = self._proposal_target_layer(rois, roi_scores, "rpn_rois")
         else:
-            rois, _ = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois", sess)
+            rois, _ = self._proposal_layer(rpn_cls_prob, rpn_bbox_pred, "rois")
 
         self._predictions["rpn_cls_score"] = rpn_cls_score
         self._predictions["rpn_cls_score_reshape"] = rpn_cls_score_reshape
@@ -298,7 +288,7 @@ class Network(object):
                                         weights_initializer=initializer_bbox,
                                         trainable=is_training,
                                         activation_fn=None, scope='bbox_pred')
-        print ('bbox_pred.shape',bbox_pred.shape)
+
         self._predictions["cls_score"] = cls_score
         self._predictions["cls_pred"] = cls_pred
         self._predictions["cls_prob"] = cls_prob
@@ -306,7 +296,7 @@ class Network(object):
 
         return cls_prob, bbox_pred
 
-    def create_architecture(self, mode, sess):
+    def create_architecture(self, mode):
         self._image = tf.placeholder(tf.float32, shape=[1, None, None, 3])
         self._im_info = tf.placeholder(tf.float32, shape=[3])
         self._gt_boxes = tf.placeholder(tf.float32, shape=[None, 5])
@@ -324,7 +314,7 @@ class Network(object):
                     weights_regularizer=weights_regularizer,
                     biases_regularizer=biases_regularizer,
                     biases_initializer=tf.constant_initializer(0.0)):
-                rois, cls_prob, bbox_pred = self._build_network(sess,training)
+                rois, cls_prob, bbox_pred = self._build_network(training)
 
         layers_to_output = {'rois': rois}
 

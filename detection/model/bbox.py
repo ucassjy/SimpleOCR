@@ -15,16 +15,8 @@ def bbox_transform(ex_rois, gt_rois):
     gt_ctr_y = gt_rois[:, 1]
     gt_angle = gt_rois[:, 4]
 
-    # print('ex_widths :', ex_widths)
-    # print('ex_heights:', ex_heights)
-    # print('gt_widths :', gt_widths)
-    # print('gt_heights:', gt_heights)
     targets_dx = (gt_ctr_x - ex_ctr_x) / ex_widths
     targets_dy = (gt_ctr_y - ex_ctr_y) / ex_heights
-    tf.Assert(tf.reduce_min(gt_widths)>0, [gt_widths])
-    tf.Assert(tf.reduce_min(gt_heights)>0, [gt_heights])
-    tf.Assert(tf.reduce_min(ex_widths)>0, [ex_widths])
-    tf.Assert(tf.reduce_min(ex_heights)>0, [ex_heights])
     targets_dw = np.log(gt_widths / ex_widths)
     targets_dh = np.log(gt_heights / ex_heights)
     targets_da = gt_angle - ex_angle
@@ -50,22 +42,13 @@ def bbox_transform_inv_tf(boxes, deltas):
     dw = deltas[:, 3]
     da = deltas[:, 4]
 
-    # print ()
-
-
-    # print ('angles.shape',angle.shape)
-    # print ('da.shape',da.shape)
     pred_ctr_x = tf.add(tf.multiply(dx, widths), ctr_x)
     pred_ctr_y = tf.add(tf.multiply(dy, heights), ctr_y)
     pred_w = tf.multiply(tf.exp(dw), widths)
     pred_h = tf.multiply(tf.exp(dh), heights)
     pred_a = tf.add(angle, da)
 
-	# for i in range(int(pred_a.shape[0])):
-	# 	for j in range(int(pred_a.shape[1]))
-	# pred_a
     a_up = tf.add(pred_a, 180)
-    print("pred_a,a_up",pred_a,a_up)
     a_down = tf.subtract(pred_a, 180)
     pred_a = tf.where(pred_a >= 135, pred_a, a_down)
     pred_a = tf.where(pred_a < -45, pred_a, a_up)
@@ -99,30 +82,6 @@ def clip_boxes_tf(boxes, im_info):
     tf.Assert(tf.greater_equal(tf.reduce_min(w_new), 0.), [w_new])
     return tf.stack([x_center, y_center, h_new, w_new, angle], axis=1)
 
-def clockwise_sort(points):
-    """ Sort input points clockwise. """
-
-    if len(points) <= 3:
-        return points
-    # print ('len points', len(points))
-    l = np.argmin(points[:, 0])
-    # p_flag is one of the points at the leftmost
-    p_flag = points[l]
-    # print ('p_flag.shape=',p_flag.shape)
-    # separate points above p_flag and below p_flag
-    above = np.array([p for p in points if p[1] >= p_flag[1]])
-    below = np.array([p for p in points if p[1] < p_flag[1]])
-    # sort 'above' and 'below' separately by x coordinate
-    if above.shape[0] == 0:
-        points = below[below[:, 0].argsort()][::-1]
-    elif below.shape[0] == 0:
-        points = above[above[:, 0].argsort()]
-    else:
-        above = above[above[:, 0].argsort()]
-        below = below[below[:, 0].argsort()][::-1]
-        points = np.concatenate((above, below))
-    return points
-
 def bbox_overlaps(boxes, query_boxes):
     """ Calculate IoU(intersection-over-union) and angle difference for each input boxes and query_boxes. """
 
@@ -132,7 +91,6 @@ def bbox_overlaps(boxes, query_boxes):
     delta_theta = np.reshape(np.zeros((N, K)), (N,K))
 
     for k in range(K):
-        # print (k)
         rect1 = ((query_boxes[k][0], query_boxes[k][1]),
                  (query_boxes[k][2], query_boxes[k][3]),
                  query_boxes[k][4])
@@ -141,16 +99,13 @@ def bbox_overlaps(boxes, query_boxes):
                      (boxes[n][2], boxes[n][3]),
                      boxes[n][4])
             # can check official document of opencv for details
-            # print (rect1,rect2)
             num_int, points = cv2.rotatedRectangleIntersection(rect1, rect2)
             S1 = query_boxes[k][2] * query_boxes[k][3]
             S2 = boxes[n][2] * boxes[n][3]
             if num_int == 1 and len(points) > 2:
-                # points = clockwise_sort(points[:,0])
                 s = cv2.contourArea(cv2.convexHull(points,returnPoints=True))
                 overlaps[n][k] = s / (S1 + S2 - s)
             elif num_int == 2:
                 overlaps[n][k] = min(S1, S2) / max(S1, S2)
             delta_theta[n][k] = np.abs(query_boxes[k][4] - boxes[n][4])
-            # print (overlaps[n][k])
     return overlaps, delta_theta

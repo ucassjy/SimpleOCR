@@ -22,7 +22,7 @@ class SolverWrapper(object):
     def construct_graph(self, sess):
         with sess.graph.as_default():
             # Build the main computation graph
-            layers = self.net.create_architecture('TRAIN',sess)
+            layers = self.net.create_architecture('TRAIN')
             # Define the loss
             loss = layers['total_loss']
             # Set learning rate and momentum
