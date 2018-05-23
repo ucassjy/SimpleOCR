@@ -23,7 +23,7 @@ for filename in os.listdir('image_1000/'): #'/home/h/a/hanlins/Desktop/OCR/image
     #ret,img = cv2.threshold(img, 127,255,cv2.THRESH_TOZERO)
     step += 1
     print(step)
-    if (step > 10):
+    if (step > 2):
 
         exit()
 
