@@ -39,11 +39,7 @@ def rotate_cpu_nms(dets, scores, threshold):
 			r2 = ((dets[j,0],dets[j,1]),(dets[j,3],dets[j,2]),dets[j,4])
 			area_r2 = dets[j,2]*dets[j,3]
 
-			try:
-				n, int_pts = cv2.rotatedRectangleIntersection(r1, r2)
-			except:
-				n = 0
-				suppressed[j] = 1
+			n, int_pts = cv2.rotatedRectangleIntersection(r1, r2)
 			if n == 1:
 				order_pts = cv2.convexHull(int_pts, returnPoints = True)
 				int_area = cv2.contourArea(order_pts)
