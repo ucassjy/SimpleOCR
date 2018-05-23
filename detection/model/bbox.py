@@ -21,8 +21,8 @@ def bbox_transform(ex_rois, gt_rois):
     targets_dh = np.log(gt_heights / ex_heights)
     targets_da = gt_angle - ex_angle
 
-    targets_da[np.where(targets_da < -45)] += 180
-    targets_da[np.where(targets_da >= 135)] -= 180
+    targets_da[np.where(targets_da < -np.pi / 4)] += np.pi
+    targets_da[np.where(targets_da >= np.pi * (3.0/4))] -= np.pi
 
     targets = np.vstack(
         (targets_dx, targets_dy, targets_dw, targets_dh, targets_da)).transpose()
@@ -48,10 +48,10 @@ def bbox_transform_inv_tf(boxes, deltas):
     pred_h = tf.multiply(tf.exp(dh), heights)
     pred_a = tf.add(angle, da)
 
-    a_up = tf.add(pred_a, 180)
-    a_down = tf.subtract(pred_a, 180)
-    pred_a = tf.where(pred_a >= 135, pred_a, a_down)
-    pred_a = tf.where(pred_a < -45, pred_a, a_up)
+    a_up = tf.add(pred_a, np.pi)
+    a_down = tf.subtract(pred_a, np.pi)
+    pred_a = tf.where(pred_a >= np.pi * (3.0/4), pred_a, a_down)
+    pred_a = tf.where(pred_a < -np.pi / 4, pred_a, a_up)
 
     return tf.stack([pred_ctr_x, pred_ctr_y, pred_h, pred_w, pred_a], axis=1)
 
@@ -87,6 +87,8 @@ def bbox_overlaps(boxes, query_boxes):
 
     N = boxes.shape[0]
     K = query_boxes.shape[0]
+    boxes = np.round(boxes, decimals=2)
+    query_boxes = np.round(query_boxes, decimals=2)
     overlaps = np.reshape(np.zeros((N, K)), (N,K))
     delta_theta = np.reshape(np.zeros((N, K)), (N,K))
 

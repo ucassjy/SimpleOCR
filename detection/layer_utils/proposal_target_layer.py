@@ -84,15 +84,19 @@ def _sample_rois(all_rois, all_scores, gt_boxes, fg_rois_per_image, rois_per_ima
     gt_max_overlaps = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])]
     gt_argmax_overlaps = overlaps == gt_max_overlaps
 
-    high_overlaps = overlaps > 0.5
-    low_overlaps = overlaps < 0.3
-    positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi / 12.0))[0]
-    negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > np.pi / 12.0)))[0]
+    # high_overlaps = overlaps > 0.5
+    # low_overlaps = overlaps < 0.3
+    # positive = np.where(np.logical_and(np.logical_or(gt_argmax_overlaps,high_overlaps),delta_theta < np.pi / 12.0))[0]
+    # negative = np.where(np.logical_or(low_overlaps, np.logical_and(high_overlaps, delta_theta > np.pi / 12.0)))[0]
 
     labels = np.ones(max_overlaps.shape[0], dtype=np.float32)
     # Select foreground RoIs as those with >= FG_THRESH overlap
-    fg_inds = positive
-    bg_inds = negative
+    # fg_inds = positive
+    # bg_inds = negative
+    fg_inds = np.where( max_overlaps >= 0.5)[0]
+    bg_inds = np.where((max_overlaps <  0.5) &
+                       (max_overlaps >= 0.1))[0]
+
 
     # Small modification to the original version where we ensure a fixed number of regions are sampled
     if fg_inds.size > 0 and bg_inds.size > 0:

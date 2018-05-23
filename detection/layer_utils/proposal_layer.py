@@ -19,6 +19,7 @@ def rotate_cpu_nms(dets, scores, threshold):
 	max_size = 2000
 	keep = []
 
+	dets = np.round(dets, decimals=2)
 	order = scores.argsort()[::-1]
 	ndets = dets.shape[0]
 	suppressed = np.zeros((ndets), dtype = np.int)
